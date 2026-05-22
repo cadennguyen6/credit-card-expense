@@ -1,0 +1,2407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Credit Card Expense</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --bg:#f0f4f8;--surface:#fff;--surface2:#e8eef5;
+  --border:#d0dce8;--border2:#b8cad8;
+  --text:#1a2a3a;--muted:#5c7fa8;--dim:#8fafc8;
+  --accent:#2b4c7e;--accent2:#3d6499;--alight:#dce8f5;
+  --red:#c0392b;--red-bg:#fdf0ee;--red-bd:#f0c4be;
+  --red2:#8b1a1a;--red2-bg:#f9e0de;--red2-bd:#e8a09a;
+  --green:#1f7d4a;--green-bg:#edf7f1;--green-bd:#b3dfc5;
+  --chase:#117aca;--capone:#d03027;
+  --r:12px;--rs:8px;
+  --sh:0 1px 3px rgba(43,76,126,.08),0 0 0 1px rgba(43,76,126,.06);
+  --shs:0 1px 2px rgba(43,76,126,.05),0 0 0 1px rgba(43,76,126,.04);
+}
+html[data-theme="dark"]{
+  --bg:#0f1521;--surface:#1a2332;--surface2:#222d40;
+  --border:#2a3548;--border2:#3a4660;
+  --text:#e8eef5;--muted:#8fa5c0;--dim:#5c7090;
+  --accent:#6391d1;--accent2:#7aaae8;--alight:#1e3050;
+  --red:#e85a4f;--red-bg:#2a1815;--red-bd:#5c2820;
+  --red2:#ff7a6f;--red2-bg:#2a1815;--red2-bd:#5c2820;
+  --green:#4ec07a;--green-bg:#142a1e;--green-bd:#1f5232;
+  --chase:#4ba0e8;--capone:#ff6356;
+  --sh:0 1px 3px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.04);
+  --shs:0 1px 2px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.03);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* AUTH */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.auth-box{background:var(--surface);border-radius:var(--r);padding:36px 32px;width:100%;max-width:400px;box-shadow:var(--sh);}
+.auth-title{font-size:20px;font-weight:700;margin-bottom:4px;}
+.auth-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+.auth-label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px;margin-top:14px;}
+.auth-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;outline:none;}
+.auth-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(43,76,126,.1);}
+.auth-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--rs);padding:11px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:20px;}
+.auth-btn:hover{background:var(--accent2);}
+.auth-btn:disabled{opacity:.6;cursor:not-allowed;}
+.auth-switch{font-size:12px;color:var(--muted);text-align:center;margin-top:14px;}
+.auth-switch a{color:var(--accent);cursor:pointer;text-decoration:underline;}
+.auth-err{background:var(--red-bg);border:1px solid var(--red-bd);color:var(--red);border-radius:var(--rs);padding:8px 12px;font-size:12px;margin-top:10px;}
+.auth-ok{background:var(--green-bg);border:1px solid var(--green-bd);color:var(--green);border-radius:var(--rs);padding:8px 12px;font-size:12px;margin-top:10px;}
+
+/* HEADER */
+header{position:sticky;top:0;z-index:100;background:var(--accent);box-shadow:0 2px 8px rgba(43,76,126,.2);}
+.header-top{display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:56px;}
+.h-title{font-size:16px;font-weight:700;color:#fff;}
+.h-right{display:flex;align-items:center;gap:12px;}
+.h-user{font-size:12px;color:rgba(255,255,255,.75);font-family:'JetBrains Mono',monospace;}
+.h-badge{background:rgba(255,255,255,.2);color:#fff;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;letter-spacing:.05em;}
+.h-btn{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:7px;padding:5px 12px;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;}
+.h-btn:hover{background:rgba(255,255,255,.25);}
+.tab-bar{display:flex;align-items:center;gap:2px;padding:0 32px;border-top:1px solid rgba(255,255,255,.1);}
+.tab-btn{background:transparent;border:none;color:rgba(255,255,255,.65);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.tab-btn:hover{color:rgba(255,255,255,.9);}
+.tab-btn.active{color:#fff;border-bottom-color:#fff;}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:272px 1fr;min-height:calc(100vh - 92px);}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:18px 16px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;}
+.slabel{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;font-family:'JetBrains Mono',monospace;}
+.srow{display:flex;gap:6px;}
+.ifield{flex:1;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;outline:none;}
+.ifield:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(43,76,126,.1);}
+.ifield::placeholder{color:var(--dim);}
+.pbtn{background:var(--accent);color:#fff;border:none;border-radius:var(--rs);padding:8px 12px;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.pbtn:hover{background:var(--accent2);}
+.pbtn:disabled{opacity:.5;cursor:not-allowed;}
+.gbtn{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--rs);padding:8px 12px;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;cursor:pointer;}
+.gbtn:hover{border-color:var(--accent);color:var(--accent);background:var(--alight);}
+.sbtn{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;line-height:1;padding:3px 5px;border-radius:4px;flex-shrink:0;}
+.sbtn:hover{color:var(--red);}
+
+/* Sidebar tree */
+.tree{display:flex;flex-direction:column;gap:2px;}
+/* Company level */
+.co-row{display:flex;align-items:center;gap:3px;}
+.co-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--rs);border:1px solid transparent;cursor:pointer;flex:1;min-width:0;transition:all .12s;user-select:none;}
+.co-item:hover{background:var(--bg);border-color:var(--border);}
+.co-item.on{background:var(--alight);border-color:#a8c4e0;}
+.co-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);flex-shrink:0;}
+.co-dot.loaded{background:var(--green);}
+.co-name{flex:1;font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.co-item.on .co-name{color:var(--accent);}
+.co-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);}
+/* Bank level */
+.bank-row{display:flex;align-items:center;gap:3px;padding-left:14px;}
+.bank-item{display:flex;align-items:center;gap:7px;padding:5px 10px;border-radius:var(--rs);border:1px solid transparent;cursor:pointer;flex:1;min-width:0;transition:all .12s;user-select:none;}
+.bank-item:hover{background:var(--bg);}
+.bank-item.on{background:var(--alight);border-color:#c4d8ed;}
+.bank-icon{width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0;}
+.bank-name{flex:1;font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bank-item.on .bank-name{color:var(--accent);}
+.bank-meta{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
+/* Card level */
+.card-row{display:flex;align-items:center;gap:3px;padding-left:28px;}
+.card-item{display:flex;align-items:center;gap:7px;padding:4px 10px;border-radius:var(--rs);border:1px solid transparent;cursor:pointer;flex:1;min-width:0;transition:all .12s;}
+.card-item:hover{background:var(--bg);}
+.card-item.on{background:var(--alight);border-color:#c4d8ed;}
+.av{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;}
+.card-name{flex:1;font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-item.on .card-name{color:var(--accent);}
+.card-stat{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
+
+/* CONTENT */
+.content{padding:26px 30px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;overflow-x:hidden;min-width:0;}
+.full-content{padding:26px 30px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;min-height:calc(100vh - 92px);}
+.ph{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:460px;text-align:center;}
+.ph-ic{width:64px;height:64px;background:var(--alight);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;border:1px solid #b8d0e8;}
+.ph-t{font-size:18px;font-weight:700;}
+.ph-s{font-size:13px;color:var(--muted);max-width:280px;line-height:1.6;}
+.spin-wrap{display:flex;align-items:center;justify-content:center;min-height:300px;}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ptop{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.ptitle{font-size:21px;font-weight:700;letter-spacing:-.3px;}
+.ptitle span{color:var(--accent);}
+.btns{display:flex;gap:8px;}
+
+/* Bank badge */
+.bank-badge{display:inline-flex;align-items:center;gap:5px;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;color:#fff;}
+
+/* Upload */
+.uzone{background:var(--surface);border:2px dashed var(--border2);border-radius:var(--r);padding:48px 24px;text-align:center;cursor:pointer;transition:all .18s;}
+.uzone:hover,.uzone.drag{border-color:var(--accent);background:var(--alight);}
+
+/* Tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;}
+.tile{background:var(--surface);border-radius:var(--r);padding:14px 12px;box-shadow:var(--shs);border-top:3px solid #ccc;cursor:pointer;transition:box-shadow .15s,transform .12s;}
+.tile:hover{box-shadow:var(--sh);transform:translateY(-1px);}
+.tile-amt{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;color:var(--text);margin-bottom:3px;}
+.tile-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);}
+.tile-ct{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);margin-top:2px;}
+
+/* Panel / table */
+.panel{background:var(--surface);border-radius:var(--r);box-shadow:var(--shs);overflow:hidden;}
+.panel-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.panel-top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px;}
+.panel-ttl{font-size:13px;font-weight:700;}
+table{width:100%;border-collapse:collapse;min-width:500px;}
+th{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;}
+th.lft{text-align:left;}
+td{padding:0;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr.foot td{background:var(--bg);border-top:2px solid var(--border2);}
+tr.bank-header-row td{background:var(--surface2);}
+.ci{display:flex;align-items:center;justify-content:flex-end;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text);}
+.ci.lft{justify-content:flex-start;gap:8px;}
+.ci.dim{color:var(--dim);}
+.ci.red{color:var(--red);}
+.ci.click{cursor:pointer;}
+.ci.click:hover{text-decoration:underline;color:var(--accent);}
+.pinfo{display:flex;flex-direction:column;}
+.pname{font-size:13px;font-weight:600;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;}
+.pstat{font-size:10px;color:var(--dim);font-family:'JetBrains Mono',monospace;margin-top:1px;}
+.pacts{display:flex;gap:5px;margin-left:auto;align-items:center;}
+.rebtn{background:transparent;color:var(--dim);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;}
+.rebtn:hover{border-color:var(--accent);color:var(--accent);}
+.editbtn{background:var(--alight);color:var(--accent);border:1px solid #a8c4e0;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-weight:600;}
+.editbtn:hover{background:var(--accent);color:#fff;}
+.delbtn{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;padding:0 3px;opacity:0;}
+tr:hover .delbtn{opacity:1;}
+.delbtn:hover{color:var(--red);}
+.name-input{background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:3px 8px;font-size:13px;font-weight:600;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;outline:none;width:140px;}
+.save-btn{background:var(--accent);color:#fff;border:none;border-radius:5px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;}
+
+/* Checklist */
+.cklist{display:flex;flex-direction:column;gap:6px;}
+.ck-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;}
+.ck-title{font-size:13px;font-weight:700;}
+.ck-prog{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);}
+.ck-item{display:flex;align-items:flex-start;gap:10px;border-radius:var(--rs);padding:10px 12px;cursor:pointer;transition:all .2s;}
+.ck-box{width:17px;height:17px;border-radius:4px;border:2px solid;background:#fff;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;}
+.ck-tick{color:#fff;font-size:10px;font-weight:700;display:none;}
+.ck-body{flex:1;}
+.ck-who{font-size:11px;font-weight:700;margin-bottom:2px;}
+.ck-desc{font-size:13px;font-weight:600;color:var(--text);}
+.ck-item.done .ck-desc{text-decoration:line-through;color:var(--muted);}
+.ck-why{font-size:11px;margin-top:2px;}
+.ck-amt{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;padding-left:8px;white-space:nowrap;}
+.ok-banner{display:flex;align-items:center;gap:8px;background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--green);font-weight:500;}
+.reviewed-label{margin-top:12px;margin-bottom:4px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-family:'JetBrains Mono',monospace;}
+
+/* Exec */
+.exec-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;}
+.exec-card{background:var(--surface);border-radius:var(--r);padding:18px 16px;box-shadow:var(--shs);}
+.exec-card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:10px;font-family:'JetBrains Mono',monospace;}
+.exec-val{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:500;color:var(--text);margin-bottom:2px;}
+.exec-val.red{color:var(--red);}
+.exec-sub{font-size:12px;color:var(--muted);}
+.top-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg);border-radius:var(--rs);}
+.top-rank{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);min-width:20px;}
+.top-name{font-size:13px;font-weight:600;color:var(--text);}
+.top-amt{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;margin-left:auto;}
+.top-bar-wrap{height:4px;background:var(--border);border-radius:99px;margin-top:4px;}
+.top-bar{height:4px;border-radius:99px;background:var(--accent);}
+
+/* Month to Month */
+.period-header{font-size:11px;font-weight:700;color:var(--muted);font-family:'JetBrains Mono',monospace;text-align:right;white-space:nowrap;}
+.trend-up{color:var(--red);}
+.trend-dn{color:var(--green);}
+.month-section-row td{background:var(--surface2);padding:0;}
+.month-section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-family:'JetBrains Mono',monospace;padding:7px 14px;display:block;}
+
+/* Modal */
+.mbg{position:fixed;inset:0;background:rgba(26,42,58,.42);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal{background:var(--surface);border-radius:var(--r);width:100%;max-width:720px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(43,76,126,.22);}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);}
+.modal-t{font-size:15px;font-weight:700;}
+.modal-x{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);line-height:1;}
+.modal-x:hover{color:var(--text);}
+.modal-bd{overflow-y:auto;}
+.mhead{display:grid;gap:8px;padding:8px 20px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:.07em;text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;}
+.mrow{display:grid;gap:8px;padding:10px 20px;border-bottom:1px solid var(--border);align-items:start;font-size:13px;}
+.mrow:last-child{border-bottom:none;}
+.mrow:hover{background:var(--bg);}
+.mrow.flag{background:#fdf8f7;}
+.mdate{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);padding-top:2px;}
+.mdesc{font-size:13px;font-weight:600;color:var(--text);}
+.mwhy{font-size:11px;color:var(--red);margin-top:2px;}
+.mamt{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;text-align:right;}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:.04em;text-transform:uppercase;}
+
+#fileInput{display:none;}
+#modaldiv{display:none;position:fixed;inset:0;z-index:300;}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="authScreen" class="auth-wrap">
+  <div class="auth-box">
+    <div class="auth-title">Credit Card Expense</div>
+    <div class="auth-sub" id="authSub">Sign in to your account</div>
+    <label class="auth-label">Email</label>
+    <input class="auth-input" id="authEmail" type="email" placeholder="you@company.com" onkeydown="if(event.key==='Enter')authSubmit()">
+    <label class="auth-label">Password</label>
+    <input class="auth-input" id="authPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authSubmit()">
+    <div id="authNameRow" style="display:none;">
+      <label class="auth-label">Full Name</label>
+      <input class="auth-input" id="authName" type="text" placeholder="Your name">
+    </div>
+    <button class="auth-btn" id="authBtn" onclick="authSubmit()">Sign In</button>
+    <div id="authMsg"></div>
+    <div class="auth-switch" id="authSwitch">Don't have an account? <a onclick="toggleAuthMode()">Sign up</a></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;">
+  <header>
+    <div class="header-top">
+      <div class="h-title">Credit Card Expense</div>
+      <div class="h-right">
+        <span class="h-user" id="hUser"></span>
+        <span class="h-badge" id="hBadge" style="display:none;">ADMIN</span>
+        <span id="loadInfo" style="font-size:10px;color:var(--dim);font-family:JetBrains Mono,monospace;" title="Total transactions loaded from the database"></span>
+        <button class="h-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle dark/light mode" style="font-size:14px;padding:6px 10px;">&#9789;</button>
+        <button class="h-btn" onclick="signOut()">Sign out</button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-expenses" onclick="switchTab('expenses')">&#128179; Expenses</button>
+      <button class="tab-btn" id="tab-exec" onclick="switchTab('exec')">&#128202; Executive Summary</button>
+      <button class="tab-btn" id="tab-mtm" onclick="switchTab('mtm')">&#128200; Month to Month</button>
+    </div>
+  </header>
+
+  <div id="view-expenses" class="layout">
+    <aside class="sidebar">
+      <div>
+        <div class="slabel">Add Company</div>
+        <div class="srow">
+          <input class="ifield" id="coInput" placeholder="Company name..." onkeydown="if(event.key==='Enter')addCo()">
+          <button class="pbtn" id="addCoBtn" onclick="addCo()">Add</button>
+        </div>
+      </div>
+      <div>
+        <div class="slabel">Companies</div>
+        <div class="tree" id="tree"></div>
+      </div>
+    </aside>
+    <main class="content" id="content"></main>
+  </div>
+
+  <div id="view-exec" style="display:none;">
+    <div class="full-content" id="execContent"></div>
+  </div>
+  <div id="view-mtm" style="display:none;">
+    <div class="full-content" id="mtmContent"></div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".csv">
+<div id="modaldiv"></div>
+
+<script>
+// ─── Supabase ──────────────────────────────────────────────────────────────
+const SUPABASE_URL='https://qvzysozdtshmccwymjnq.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2enlzb3pkdHNobWNjd3ltam5xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NTUyMTEsImV4cCI6MjA5NDEzMTIxMX0.e5sWE2wK2oM_uA3uGbETtujKryl7wgCKnXpfGxTTP-I';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+// ─── State ────────────────────────────────────────────────────────────────
+var currentUser=null,isAdmin=false,authMode='signin';
+// companies = [{id,name,banks:[{id,name,bankType,cards:[{id,card_no,displayName,txs:[]}]}]}]
+// Theme: read saved choice from localStorage and apply before render
+(function initTheme(){
+  try{
+    var t=localStorage.getItem('cce_theme')||'light';
+    if(t==='dark') document.documentElement.setAttribute('data-theme','dark');
+  }catch(e){}
+})();
+function toggleTheme(){
+  var html=document.documentElement;
+  var current=html.getAttribute('data-theme')==='dark'?'dark':'light';
+  var next=current==='dark'?'light':'dark';
+  if(next==='dark') html.setAttribute('data-theme','dark');
+  else html.removeAttribute('data-theme');
+  try{localStorage.setItem('cce_theme',next);}catch(e){}
+  // Update button icon
+  var btn=document.getElementById('themeBtn');
+  if(btn) btn.innerHTML=next==='dark'?'&#9728;':'&#9789;';
+}
+
+var companies=[],curCo=null,curBank=null,curCard=null,editingCard=null,activeTab='expenses',selectedPeriod=null,execCompanyFilter='',mtmCompanyFilter='';
+// Custom date range used when selectedPeriod==='custom' or execSelectedPeriod==='custom'
+var customStart='',customEnd='';
+// Executive Summary period state (separate from main selectedPeriod)
+var execSelectedPeriod='',execCustomStart='',execCustomEnd='';
+// Chart state for Month-to-Month: 'company' | 'card' | 'cardholder'
+var chartViewBy='company';
+// Set of checked entity IDs for the current view. null = "use defaults" (auto-pick on first render)
+var chartChecked=null;
+// Sortable transactions state (inside Expenses tab)
+var txViewFilter='all';  // 'all' | 'flagged' | 'unreviewed' | 'large' | 'recent30' | 'custom'
+var txSortField='date',txSortDir='desc';  // date|amount|cardholder|vendor|category|bank, asc|desc
+var txSearch='';
+var txPage=0;
+var TX_PAGE_SIZE=50;
+var TX_SHOW=false;  // Hidden by default — toggle to expand
+
+// Period matching helper. sel may be '' (all), 'custom' (uses cStart/cEnd), or 'YYYY-MM'.
+function periodMatches(period,sel,cStart,cEnd){
+  if(sel==='') return true;
+  if(sel==='custom'){
+    if(cStart && period<cStart) return false;
+    if(cEnd && period>cEnd) return false;
+    return true;
+  }
+  return period===sel;
+}
+
+// Pretty label for the current custom range (uses customStart/customEnd).
+function customRangeLabel(){
+  var s=customStart?periodLabel(customStart):'start';
+  var e=customEnd?periodLabel(customEnd):'end';
+  return s+' &mdash; '+e;
+}
+
+// All upload-flow state in one place. Reset via resetUploadState().
+var uploadState={pdfBuffer:null,csvText:null,targetBankId:null,pendingReupload:null};
+function resetUploadState(){uploadState.pdfBuffer=null;uploadState.csvText=null;uploadState.targetBankId=null;uploadState.pendingReupload=null;}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────
+function toggleAuthMode(){
+  authMode=authMode==='signin'?'signup':'signin';
+  document.getElementById('authSub').textContent=authMode==='signup'?'Create your account':'Sign in to your account';
+  document.getElementById('authBtn').textContent=authMode==='signup'?'Sign Up':'Sign In';
+  document.getElementById('authSwitch').innerHTML=authMode==='signup'?'Already have an account? <a onclick="toggleAuthMode()">Sign in</a>':"Don't have an account? <a onclick=\"toggleAuthMode()\">Sign up</a>";
+  document.getElementById('authNameRow').style.display=authMode==='signup'?'block':'none';
+  document.getElementById('authMsg').innerHTML='';
+}
+function setAuthMsg(msg,ok){document.getElementById('authMsg').innerHTML='<div class="'+(ok?'auth-ok':'auth-err')+'">'+msg+'</div>';}
+
+async function authSubmit(){
+  var email=document.getElementById('authEmail').value.trim();
+  var pass=document.getElementById('authPass').value;
+  var btn=document.getElementById('authBtn');
+  if(!email||!pass){setAuthMsg('Please fill in all fields.');return;}
+  btn.disabled=true;btn.textContent='Please wait…';
+  if(authMode==='signup'){
+    var name=document.getElementById('authName').value.trim();
+    var {error}=await sb.auth.signUp({email,password:pass,options:{data:{full_name:name}}});
+    if(error){setAuthMsg(error.message);btn.disabled=false;btn.textContent='Sign Up';return;}
+    setAuthMsg('Account created! Check your email to confirm, then sign in.',true);
+    btn.disabled=false;btn.textContent='Sign Up';
+  } else {
+    var {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+    if(error){setAuthMsg(error.message);btn.disabled=false;btn.textContent='Sign In';return;}
+    // Reset the button so it's clean for next sign-in (e.g. after a sign out).
+    btn.disabled=false;btn.textContent='Sign In';
+    await onSignedIn(data.user);
+  }
+}
+
+async function onSignedIn(user){
+  currentUser=user;
+  try{var {data:rd}=await sb.from('user_roles').select('role').eq('user_id',user.id).maybeSingle();isAdmin=rd&&rd.role==='admin';}catch(e){isAdmin=false;}
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('hUser').textContent=user.email;
+  document.getElementById('hBadge').style.display=isAdmin?'inline':'none';
+  await loadData();
+  refreshBoxStatus();  // populate boxState in the background
+  handleBoxOAuthRedirect();
+}
+
+function handleBoxOAuthRedirect(){
+  var p=new URLSearchParams(window.location.search);
+  var status=p.get('box');
+  if(!status) return;
+  // Strip the param from the URL bar
+  p.delete('box');p.delete('reason');
+  var clean=window.location.pathname+(p.toString()?'?'+p.toString():'');
+  window.history.replaceState({},'',clean);
+  if(status==='connected'){
+    setTimeout(function(){refreshBoxStatus();},200);
+    var msg=document.createElement('div');
+    msg.textContent='Box connected!';
+    msg.style.cssText='position:fixed;top:20px;right:20px;background:var(--green);color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.15);';
+    document.body.appendChild(msg);
+    setTimeout(function(){msg.remove();},3000);
+  } else if(status==='error'){
+    alert('Box connection failed: '+(p.get('reason')||'unknown'));
+  }
+}
+
+async function signOut(){
+  await sb.auth.signOut();
+  // Wipe data
+  currentUser=null;isAdmin=false;companies=[];curCo=null;curBank=null;curCard=null;
+  // Wipe ALL filter and view state — otherwise the next sign-in inherits stale
+  // filters (e.g. "Custom range", "Flagged only", a specific period) which
+  // silently cuts down totals and breaks the chart.
+  selectedPeriod=null;
+  customStart='';customEnd='';
+  execSelectedPeriod='';execCustomStart='';execCustomEnd='';execCompanyFilter='';
+  mtmCompanyFilter='';
+  chartViewBy='company';chartChecked=null;
+  txViewFilter='all';txSortField='date';txSortDir='desc';txSearch='';txPage=0;TX_SHOW=false;
+  activeTab='expenses';
+  editingCard=null;
+  // Show auth screen
+  document.getElementById('app').style.display='none';
+  document.getElementById('authScreen').style.display='flex';
+  document.getElementById('authEmail').value='';document.getElementById('authPass').value='';document.getElementById('authMsg').innerHTML='';
+  // Reset the auth button so the user can sign in again without reloading
+  var btn=document.getElementById('authBtn');
+  if(btn){btn.disabled=false;btn.textContent=authMode==='signup'?'Sign Up':'Sign In';}
+}
+sb.auth.getSession().then(async({data:{session}})=>{if(session)await onSignedIn(session.user);});
+
+// ─── Tabs ──────────────────────────────────────────────────────────────────
+function switchTab(tab){
+  activeTab=tab;
+  ['expenses','exec','mtm'].forEach(function(t){
+    document.getElementById('view-'+t).style.display=t===tab?(t==='expenses'?'grid':'block'):'none';
+    document.getElementById('tab-'+t).classList.toggle('active',t===tab);
+  });
+  if(tab==='exec') renderExec();
+  if(tab==='mtm') renderMTM();
+}
+
+// ─── Data loading ──────────────────────────────────────────────────────────
+// Paginated fetcher — Supabase's PostgREST defaults to a 1000-row limit per
+// query, so we have to loop with .range() to get everything.
+async function fetchAll(tableName, orderField){
+  var all=[];
+  var pageSize=1000;
+  var from=0;
+  while(true){
+    var {data,error}=await sb.from(tableName).select('*').order(orderField).range(from, from+pageSize-1);
+    if(error){console.error('Error loading '+tableName+':', error); break;}
+    if(!data||!data.length) break;
+    all=all.concat(data);
+    if(data.length<pageSize) break;  // last page
+    from+=pageSize;
+  }
+  return all;
+}
+
+async function loadData(){
+  document.getElementById('content').innerHTML='<div class="spin-wrap"><div class="spinner"></div></div>';
+  var cos=await fetchAll('companies','created_at');
+  var banks=await fetchAll('banks','created_at');
+  var cards=await fetchAll('cards','created_at');
+  var txs=await fetchAll('transactions','date');
+  // Diagnostic: confirm we got everything. Watch the DevTools console.
+  var totalAmt=(txs||[]).reduce(function(s,t){return s+parseFloat(t.amount||0);},0);
+  console.log('[loadData] companies:',cos.length,'banks:',banks.length,'cards:',cards.length,'transactions:',txs.length,'total $:',totalAmt.toFixed(2));
+  // Surface count in header for quick sanity check
+  var loadInfo=document.getElementById('loadInfo');
+  if(loadInfo) loadInfo.textContent=txs.length+' tx loaded';
+  companies=(cos||[]).map(function(co){
+    var coBanks=(banks||[]).filter(function(b){return b.company_id===co.id;}).map(function(b){
+      var bankCards=(cards||[]).filter(function(c){return c.bank_id===b.id;}).map(function(c){
+        var cardTxs=(txs||[]).filter(function(t){return t.card_id===c.id;}).map(function(t){
+          return{date:t.date,description:t.description,amount:parseFloat(t.amount),cat:t.category,flagged:t.flagged,flagReason:t.flag_reason||'',reviewed:t.reviewed,period:t.statement_period||'',dbId:t.id};
+        });
+        return{id:c.id,card_no:c.card_no,displayName:c.display_name,txs:cardTxs};
+      });
+      return{id:b.id,name:b.name,bankType:b.bank_type||b.name,cards:bankCards};
+    });
+    return{id:co.id,name:co.name,banks:coBanks};
+  });
+  if(!curCo&&companies.length) curCo=companies[0].id;
+  render();
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+var ABG=['#dce8f5','#e0f2e9','#ece8f7','#fdf3de','#fde8e8','#e8f5f0','#f0e8f5','#e8f5f0'];
+var AFG=['#2b4c7e','#1f7d4a','#5b3fa8','#b07d1a','#c0392b','#1a6b55','#7b2fa8','#1a6b55'];
+function avStyle(i){var x=i%ABG.length;return 'background:'+ABG[x]+';color:'+AFG[x]+';';}
+function initials(n){var s=(n||'?').trim();var cm=s.match(/Card\s+(\d+)/i);if(cm)return cm[1].slice(-4);var p=s.split(/\s+/);return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function sq(s){return"'"+String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"'";}
+function fmt(n){return'$'+(n||0).toFixed(2);}
+
+// ─── Shared table builders ──────────────────────────────────────────────────
+// One-stop <td><div class="ci..."> cell. `inner` is HTML to drop inside the div
+// (caller formats currency / icons / etc).
+// opts: {dim,red,click,lft,bold,color,onclick}
+function cell(inner,opts){
+  opts=opts||{};
+  var cls='ci';
+  if(opts.lft)   cls+=' lft';
+  if(opts.dim)   cls+=' dim';
+  if(opts.red)   cls+=' red';
+  if(opts.click) cls+=' click';
+  var inline='';
+  if(opts.bold)  inline+='font-weight:700;';
+  if(opts.color) inline+='color:'+opts.color+';';
+  var attrs=(inline?' style="'+inline+'"':'')+(opts.onclick?' onclick="'+opts.onclick+'"':'');
+  return '<td><div class="'+cls+'"'+attrs+'>'+inner+'</div></td>';
+}
+
+// "TOTALS" footer label cell used by every spend table.
+function totalsLabelCell(label){
+  return '<td><div class="ci lft" style="font-size:11px;font-weight:700;color:var(--muted);font-family:JetBrains Mono,monospace;">'+(label||'TOTALS')+'</div></td>';
+}
+
+// Bank divider row used in the Expenses table.
+function bankSectionRow(bank,colspan,extraRightHtml){
+  var col=bankColor(bank.bankType);
+  return '<tr class="bank-header-row"><td colspan="'+colspan+'">'
+    +'<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;">'
+      +'<div style="width:18px;height:18px;border-radius:4px;background:'+col+';display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;">'+bankInitial(bank.bankType)+'</div>'
+      +'<span style="font-size:12px;font-weight:700;color:var(--text);">'+esc(bank.name)+'</span>'
+      +(extraRightHtml||'')
+    +'</div></td></tr>';
+}
+
+// Company divider row used in the Month-to-Month table.
+function coSectionRow(co,colspan){
+  return '<tr class="month-section-row"><td colspan="'+colspan+'"><span class="month-section-label">'+esc(co.name)+'</span></td></tr>';
+}
+
+function getCo(id){return companies.find(function(c){return c.id===id;});}
+function getBank(coId,bankId){var co=getCo(coId);return co?co.banks.find(function(b){return b.id===bankId;}):null;}
+function getCard(bankId,cardId){var co=getCo(curCo);if(!co)return null;for(var i=0;i<co.banks.length;i++){if(co.banks[i].id===bankId){return co.banks[i].cards.find(function(c){return c.id===cardId;});}}return null;}
+
+// Bank detection — filename keywords first (most reliable when present),
+// then CSV column shape as fallback, "Unknown" if neither matches.
+function detectBankFromCSV(rows,csvText,fileName){
+  // 1. Filename keywords
+  if(fileName){
+    var n=fileName.toLowerCase();
+    if(n.indexOf('chase')>=0) return 'Chase';
+    if(n.indexOf('capital one')>=0||n.indexOf('capitalone')>=0||n.indexOf('co venture')>=0||/\bco[\s_-]/.test(n)) return 'Capital One';
+    if(n.indexOf('amex')>=0||n.indexOf('american express')>=0) return 'American Express';
+    if(n.indexOf('citi')>=0) return 'Citi';
+    if(n.indexOf('wells')>=0) return 'Wells Fargo';
+    if(n.indexOf('discover')>=0) return 'Discover';
+    if(n.indexOf('bofa')>=0||n.indexOf('bank of america')>=0) return 'Bank of America';
+  }
+  // 2. CSV column shape
+  if(csvText){
+    var firstLine=csvText.split('\n')[0].toLowerCase();
+    var hasType=/(^|,)\s*type\s*(,|$)/.test(firstLine);
+    var hasDebit=firstLine.indexOf('debit')>=0;
+    var hasCredit=firstLine.indexOf('credit')>=0;
+    if(hasType && rows.some(function(r){return r.txType;})) return 'Chase';
+    if(hasDebit && hasCredit) return 'Capital One';
+  }
+  return 'Unknown';
+}
+
+function bankColor(bankType){
+  var t=(bankType||'').toLowerCase();
+  if(t.includes('chase')) return '#117aca';
+  if(t.includes('capital')) return '#d03027';
+  if(t.includes('amex')) return '#007bc1';
+  if(t.includes('citi')) return '#056dae';
+  if(t.includes('wells')) return '#d71e28';
+  if(t.includes('bofa')||t.includes('bank of america')) return '#e31837';
+  return '#5c7fa8';
+}
+
+function bankInitial(bankType){
+  var t=(bankType||'').toLowerCase();
+  if(t.includes('chase')) return 'CH';
+  if(t.includes('capital')) return 'CO';
+  if(t.includes('amex')) return 'AX';
+  if(t.includes('citi')) return 'CI';
+  if(t.includes('wells')) return 'WF';
+  return (bankType||'?')[0].toUpperCase();
+}
+
+// ─── Category ──────────────────────────────────────────────────────────────
+var CAT_COLORS={'dining':'#1f7d4a','food & drink':'#1f7d4a','food':'#1f7d4a','travel':'#1e6fb5','transportation':'#1e6fb5','merchandise':'#b07d1a','merchandise & inventory':'#b07d1a','office & shipping':'#7c3aed','health & wellness':'#0e7490','health care':'#0e7490','fees & adjustments':'#64748b','entertainment':'#e97316','legal':'#c0392b','telecommunications':'#1e6fb5','phone/cable':'#1e6fb5','professional services':'#0f766e','utilities':'#64748b','miscellaneous':'#888780','other':'#888780','other services':'#5c7fa8'};
+function catColor(cat){return CAT_COLORS[(cat||'').toLowerCase()]||'#888780';}
+var FLAG_CATS=['entertainment','legal'];
+
+function normCat(c){
+  var l=(c||'').toLowerCase().trim();
+  if(!l||l==='other') return 'Other';
+  if(l==='food & drink') return 'Food & Drink';
+  if(l==='travel') return 'Travel';
+  if(l==='merchandise & inventory'||l==='merchandise') return 'Merchandise';
+  if(l==='office & shipping') return 'Office & Shipping';
+  if(l==='health & wellness'||l==='health care') return 'Health & Wellness';
+  if(l==='fees & adjustments') return 'Fees & Adjustments';
+  if(l==='entertainment') return 'Entertainment';
+  if(l==='gas') return 'Gas';
+  if(l==='miscellaneous') return 'Miscellaneous';
+  if(l==='dining') return 'Food & Drink';
+  if(l==='phone/cable') return 'Telecommunications';
+  if(l==='other travel') return 'Travel';
+  if(l==='professional services') return 'Professional Services';
+  if(l==='utilities') return 'Utilities';
+  if(l==='other services') return 'Other Services';
+  if(l.includes('legal')||l.includes('attorney')) return 'Legal';
+  return c.replace(/\b\w/g,function(x){return x.toUpperCase();});
+}
+
+var SKIP_TYPES=['payment','return'];
+
+// Group transactions into canonical merchant names for the Top Vendors panel.
+// Catches the common cases — Amazon variants, payment-processor prefixes,
+// chains — and falls back to a cleaned-up first-few-words form.
+function normalizeVendor(desc){
+  if(!desc) return 'Unknown';
+  var s=desc.trim().replace(/^(TST\*|SQ\s*\*|DD\s*\*|UEP\*|DMI\*|HI\s*\*|PY\s*\*|PSE\*|TST \*|EB\s*|PSVJ\s*\*)/i,'');
+  var u=s.toUpperCase();
+  if(/AMAZON|AMZN/.test(u)) return 'Amazon';
+  if(/^UBER\s*\*?\s*EATS/.test(u)) return 'Uber Eats';
+  if(/^UBER/.test(u)) return 'Uber';
+  if(/DOORDASH/.test(u)) return 'DoorDash';
+  if(/STARBUCKS/.test(u)) return 'Starbucks';
+  if(/CHICK[-\s]?FIL[-\s]?A/.test(u)) return 'Chick-fil-A';
+  if(/HOME DEPOT/.test(u)) return 'Home Depot';
+  if(/BEST\s?BUY/.test(u)) return 'Best Buy';
+  if(/FEDEX/.test(u)) return 'FedEx';
+  if(/COMCAST|XFINITY/.test(u)) return 'Comcast / Xfinity';
+  if(/AT&?T|^ATT\*/.test(u)) return 'AT&T';
+  if(/VERIZON/.test(u)) return 'Verizon';
+  if(/MICROSOFT|MSFT/.test(u)) return 'Microsoft';
+  if(/^APPLE\.COM|^APPLE\s/.test(u)) return 'Apple';
+  if(/COSTCO/.test(u)) return 'Costco';
+  if(/TARGET/.test(u)) return 'Target';
+  if(/WALMART/.test(u)) return 'Walmart';
+  if(/PANERA/.test(u)) return 'Panera Bread';
+  if(/REPUBLIC SERVICES/.test(u)) return 'Republic Services';
+  if(/SANGOMA/.test(u)) return 'Sangoma';
+  if(/SIPTRUNK/.test(u)) return 'SipTrunk';
+  if(/WWW\.UI\.COM/.test(u)) return 'Ubiquiti';
+  if(/DELL/.test(u)) return 'Dell';
+  // Generic: take first 1-2 words, drop trailing digits and store numbers
+  var clean=s.replace(/[#*]+.*$/,'').replace(/\s+\d.*$/,'').replace(/\s{2,}/g,' ').trim();
+  if(clean.length<3) clean=s;
+  return clean.substring(0,30) || 'Unknown';
+}
+
+function isSkip(csvCat,desc,txType,amount,isCredit){
+  var t=(txType||'').toLowerCase().trim();
+  var c=(csvCat||'').toLowerCase();
+  var d=(desc||'').toLowerCase();
+
+  // Skip Chase bill payments
+  if(t==='payment') return true;
+
+  // Skip Capital One bill payment rows
+  if(c==='payment/credit') return true;
+
+  // Skip bill payments by description
+  var paymentPhrases=['payment thank you','capital one online pymt','autopay payment',
+    'returned online ach','returned ach payment','online payment - thank'];
+  if(paymentPhrases.some(function(w){return d.includes(w);})) return true;
+
+  // Capital One credits that aren't payment/credit = refunds → keep (negative amount)
+  // Chase returns → keep (negative amount)
+  // Everything else that's negative → skip (shouldn't happen but safety net)
+  if(amount!==undefined&&amount<0&&t!=='return'&&!isCredit) return true;
+
+  return false;
+}
+
+function shouldFlag(cat,amt){var c=(cat||'').toLowerCase();if(c==='entertainment'||c==='legal')return true;if(amt>=100)return true;return false;}
+function getFlagReason(cat){var c=(cat||'').toLowerCase();if(c==='entertainment')return 'Entertainment — requires business justification';if(c==='legal')return 'Legal expense — review required';return '';}
+function categorizeTx(row){if(isSkip(row.csvCat,row.description,row.txType,row.amount,row.isCredit))return null;var cat=normCat(row.csvCat);var flagged=shouldFlag(cat,row.amount);return{date:row.date,description:row.description,amount:row.amount,cat:cat,flagged:flagged,flagReason:getFlagReason(cat),reviewed:false};}
+
+function parseDate(d){
+  // Returns {yr, mo, day} or null
+  if(!d) return null;
+  var m;
+  if((m=d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/))) return{yr:m[3].length===2?'20'+m[3]:m[3],mo:parseInt(m[1],10),day:parseInt(m[2],10)};
+  if((m=d.match(/^(\d{4})-(\d{2})-(\d{2})/))) return{yr:m[1],mo:parseInt(m[2],10),day:parseInt(m[3],10)};
+  return null;
+}
+
+function detectPeriod(txs){
+  if(!txs.length) return '';
+  // Count transactions per calendar month, use the month with the most transactions
+  var counts={};
+  txs.forEach(function(t){
+    var pd=parseDate(t.date);
+    if(!pd) return;
+    var key=pd.yr+'-'+String(pd.mo).padStart(2,'0');
+    counts[key]=(counts[key]||0)+1;
+  });
+  var best='',bestCount=0;
+  Object.keys(counts).forEach(function(k){
+    if(counts[k]>bestCount){bestCount=counts[k];best=k;}
+  });
+  return best;
+}
+
+function txBelongsToPeriod(tx, period){
+  // Check if a transaction date falls within the calendar month of the period
+  if(!period||!tx.date) return true;
+  var pd=parseDate(tx.date);
+  if(!pd) return true;
+  var parts=period.split('-');
+  return pd.yr===parts[0] && String(pd.mo).padStart(2,'0')===parts[1];
+}
+function periodLabel(p){if(!p)return 'Unknown';var parts=p.split('-');if(parts.length!==2)return p;var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return months[parseInt(parts[1],10)-1]+' '+parts[0];}
+
+// ─── CSV parsing ─────────────────────────────────────────────────────────
+function parseCSV(text){
+  var rows=Papa.parse(text.trim(),{header:true,skipEmptyLines:true}).data;
+  var result=[];
+  rows.forEach(function(r){
+    var keys=Object.keys(r).map(function(k){return k.toLowerCase().trim();});
+    var vals=Object.values(r);
+    function g(){for(var i=0;i<arguments.length;i++){var n=arguments[i];var idx=keys.findIndex(function(k){return k===n||k.includes(n);});if(idx>=0)return(vals[idx]||'').toString().trim();}return'';}
+    var txDateIdx=keys.findIndex(function(k){return k==='transaction date';});
+    var dateVal=txDateIdx>=0?vals[txDateIdx]:g('date','posted','time');
+    var desc=g('description','desc','merchant','name','memo','narr');
+    var cardIdx=keys.findIndex(function(k){return k==='card'||k==='card no'||k==='card number';});
+    if(cardIdx<0) cardIdx=keys.findIndex(function(k){return k.includes('card');});
+    var cardNo=cardIdx>=0?(vals[cardIdx]||'').toString().trim():'Unknown';
+    var csvCat=g('category');
+    var txType=g('type');
+    var amtRaw=g('amount','amt','charge');
+    var debit=parseFloat((g('debit')||'0').replace(/[$,\s]/g,''))||0;
+    var credit=parseFloat((g('credit')||'0').replace(/[$,\s]/g,''))||0;
+    var amt;
+    var isCredit=false;
+    if(debit>0||credit>0){
+      if(debit>0){amt=debit;}
+      else{amt=-credit;isCredit=true;} // negative = credit back to card
+    } else {
+      // Chase format: amount is negative for charges
+      var rawAmt=parseFloat((amtRaw||'0').replace(/[$,\s]/g,''))||0;
+      amt=rawAmt; // keep sign as-is from Chase
+    }
+    if(amt!==0&&desc){
+      // Chase Return type → make negative to offset original charge
+      var isReturn=(txType||'').toLowerCase()==='return';
+      var finalAmt=isReturn?-Math.abs(amt):amt;
+      // For Chase charges, amount is already negative — make positive
+      if(!isCredit&&!isReturn) finalAmt=Math.abs(finalAmt);
+      result.push({date:dateVal,description:desc,amount:finalAmt,cardNo:cardNo,csvCat:csvCat,txType:txType,isCredit:isCredit});
+    }
+  });
+  return result;
+}
+
+// ─── PDF parsing ──────────────────────────────────────────────────────────
+function normCardNo(cn){return(cn||'').toString().trim().replace(/^0+/,'')||'0';}
+function parsePDFNames(text){
+  var lines=text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  var names={};
+
+  // ── Format 1: Capital One ── "FIRSTNAME LASTNAME #CARDNO: ..."
+  // e.g. "THU BUI #4145: Transactions"
+  var coRe=/^([A-Z][A-Z\s]+?)\s*#(\d{3,4}):/;
+
+  // ── Format 2: Chase ── "NAME\nTRANSACTIONS THIS CYCLE (CARD XXXX)"
+  var chaseRe=/TRANSACTIONS THIS CYCLE \(CARD\s+(\d+)\)/i;
+  var skipRe=/TRANSACTIONS|ACCOUNT|STATEMENT|PAYMENT|PAGE|DATE|AMOUNT|MERCHANT|ACTIVITY|MANAGE|CUSTOMER|MOBILE|CHASE|SERVICE|INTEREST|BALANCE|PURCHASES|ADVANCES/i;
+  var pendingName=null;
+
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i];
+
+    // Capital One format: NAME #CARD:
+    var m1=line.match(coRe);
+    if(m1){
+      var name=m1[1].replace(/[^A-Za-z\s\-'.]/g,'').trim();
+      var cn=normCardNo(m1[2]);
+      if(name&&name.length>2&&cn) names[cn]=name;
+      continue;
+    }
+
+    // Chase format: TRANSACTIONS THIS CYCLE (CARD XXXX)
+    var m2=line.match(chaseRe);
+    if(m2){
+      var rawCard=m2[1];
+      var key=normCardNo(rawCard);
+      var before=line.substring(0,line.toUpperCase().indexOf('TRANSACTIONS')).trim();
+      before=before.replace(/[^A-Za-z\s\-'.]/g,'').trim();
+      var name='';
+      if(before&&before.split(' ').length>=2&&before.length>3) name=before;
+      if(!name&&pendingName) name=pendingName;
+      if(!name){
+        for(var back=1;back<=3;back++){
+          if(i-back<0) break;
+          var prev=lines[i-back];
+          if(/TRANSACTIONS THIS CYCLE/i.test(prev)) break;
+          if(/^[A-Z][A-Z\s\-'.]+$/.test(prev)&&prev.split(' ').length>=2&&!/\d/.test(prev)&&prev.length>4&&!skipRe.test(prev)){
+            name=prev.replace(/[^A-Za-z\s\-'.]/g,'').trim();
+            break;
+          }
+        }
+      }
+      if(name&&name.length>2) names[key]=name;
+      pendingName=null;
+      continue;
+    }
+
+    // Chase pending name line
+    if(/^[A-Z][A-Z\s\-'.]+$/.test(line)&&line.split(' ').length>=2&&!/\d/.test(line)&&line.length>4&&!skipRe.test(line)){
+      pendingName=line.replace(/[^A-Za-z\s\-'.]/g,'').trim();
+    }
+  }
+  return names;
+}
+
+function lookupPDFName(names,cn){return names[normCardNo(cn)]||null;}
+async function extractTextFromPDF(buffer){
+  if(window.pdfjsLib){
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var pdf=await pdfjsLib.getDocument({data:buffer}).promise;
+    var fullText='';
+    for(var i=1;i<=pdf.numPages;i++){
+      var page=await pdf.getPage(i);var tc=await page.getTextContent();
+      var items=tc.items,lastY=null,line='',lines=[];
+      for(var j=0;j<items.length;j++){var item=items[j];var y=Math.round(item.transform[5]);if(lastY!==null&&Math.abs(y-lastY)>3){if(line.trim())lines.push(line.trim());line=item.str;}else{line+=(line?' ':'')+item.str;}lastY=y;}
+      if(line.trim())lines.push(line.trim());
+      fullText+=lines.join('\n')+'\n';
+    }
+    return fullText;
+  }
+  return '';
+}
+
+// ─── Company management ───────────────────────────────────────────────────
+async function addCo(){
+  var n=document.getElementById('coInput').value.trim();if(!n)return;
+  var btn=document.getElementById('addCoBtn');btn.disabled=true;
+  var {data,error}=await sb.from('companies').insert({name:n,created_by:currentUser.id}).select().single();
+  btn.disabled=false;if(error){alert('Error: '+error.message);return;}
+  document.getElementById('coInput').value='';
+  companies.push({id:data.id,name:data.name,banks:[]});
+  curCo=data.id;curBank=null;curCard=null;render();
+}
+async function removeCo(id){
+  var co=getCo(id);if(!co)return;
+  if(!confirm('Remove '+co.name+' and all data?'))return;
+  await sb.from('companies').delete().eq('id',id);
+  companies=companies.filter(function(c){return c.id!==id;});
+  if(curCo===id){curCo=companies.length?companies[0].id:null;curBank=null;curCard=null;}
+  render();
+}
+function selectCo(id){curCo=id;curBank=null;curCard=null;selectedPeriod=null;render();}
+function selectBank(id){curBank=id;curCard=null;render();}
+function selectCard(id){curCard=id;render();}
+
+async function removeBank(coId,bankId){
+  var bank=getBank(coId,bankId);if(!bank)return;
+  if(!confirm('Remove '+bank.name+' and all its cards?'))return;
+  await sb.from('banks').delete().eq('id',bankId);
+  var co=getCo(coId);co.banks=co.banks.filter(function(b){return b.id!==bankId;});
+  if(curBank===bankId){curBank=null;curCard=null;}
+  render();
+}
+
+async function removeCard(coId,bankId,cardId){
+  var bank=getBank(coId,bankId);if(!bank)return;
+  var card=bank.cards.find(function(c){return c.id===cardId;});if(!card)return;
+  if(!confirm('Remove '+card.displayName+'?'))return;
+  await sb.from('cards').delete().eq('id',cardId);
+  bank.cards=bank.cards.filter(function(c){return c.id!==cardId;});
+  if(curCard===cardId) curCard=null;
+  render();
+}
+
+async function renameCard(coId,bankId,cardId,newName){
+  if(!newName)return;
+  var bank=getBank(coId,bankId);if(!bank)return;
+  var card=bank.cards.find(function(c){return c.id===cardId;});if(!card)return;
+  await sb.from('cards').update({display_name:newName}).eq('id',cardId);
+  card.displayName=newName;editingCard=null;render();
+}
+function startEdit(coId,bankId,cardId){editingCard=cardId;render();setTimeout(function(){var i=document.getElementById('nameEditInput');if(i){i.focus();i.select();}},30);}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────
+function renderSidebar(){
+  var el=document.getElementById('tree');
+  if(!companies.length){el.innerHTML='<div style="font-size:12px;color:var(--dim);padding:4px 0;">No companies yet.</div>';return;}
+  var h='';
+  companies.forEach(function(co,ni){
+    var totalCards=0;co.banks.forEach(function(b){totalCards+=b.cards.length;});
+    var hasData=co.banks.some(function(b){return b.cards.some(function(c){return c.txs.length>0;});});
+    var isOn=co.id===curCo;
+    h+='<div class="co-row"><div class="co-item'+(isOn?' on':'')+'" data-action="selco" data-ni="'+ni+'"><div class="co-dot'+(hasData?' loaded':'')+'"></div><span class="co-name">'+esc(co.name)+'</span><span class="co-meta">'+totalCards+'</span></div><button class="sbtn" data-action="delco" data-ni="'+ni+'">×</button></div>';
+    if(isOn){
+      if(!co.banks.length) h+='<div style="padding:6px 10px 4px 22px;font-size:11px;color:var(--dim);">Upload a CSV to add cards</div>';
+      co.banks.forEach(function(bank,bi){
+        var bankIsOn=bank.id===curBank;
+        var fl=0;bank.cards.forEach(function(c){fl+=c.txs.filter(function(t){return t.flagged&&!t.reviewed;}).length;});
+        var col=bankColor(bank.bankType);
+        h+='<div class="bank-row"><div class="bank-item'+(bankIsOn?' on':'')+'" data-action="selbank" data-bi="'+bi+'">';
+        h+='<div class="bank-icon" style="background:'+col+'">'+bankInitial(bank.bankType)+'</div>';
+        h+='<span class="bank-name">'+esc(bank.name)+'</span>';
+        h+='<span class="bank-meta">'+bank.cards.length+(fl?' ⚠'+fl:'')+'</span>';
+        h+='</div><button class="sbtn" data-action="delbank" data-bi="'+bi+'">×</button></div>';
+        if(bankIsOn){
+          bank.cards.forEach(function(card,ci){
+            var cardFl=card.txs.filter(function(t){return t.flagged&&!t.reviewed;}).length;
+            var avIdx=bi*10+ci;
+            h+='<div class="card-row"><div class="card-item'+(curCard===card.id?' on':'')+'" data-action="selcard" data-bi="'+bi+'" data-ci="'+ci+'">';
+            h+='<div class="av" style="'+avStyle(avIdx)+'">'+initials(card.displayName)+'</div>';
+            h+='<span class="card-name">'+esc(card.displayName)+'<span style="color:var(--dim);font-family:JetBrains Mono,monospace;font-weight:500;margin-left:5px;font-size:10px;">·'+esc(card.card_no||'?')+'</span></span>';
+            h+='<span class="card-stat">'+card.txs.length+'tx'+(cardFl?' ⚠'+cardFl:'')+'</span>';
+            h+='</div><button class="sbtn" data-action="delcard" data-bi="'+bi+'" data-ci="'+ci+'">×</button></div>';
+          });
+        }
+      });
+    }
+  });
+  el.innerHTML=h;
+}
+
+document.getElementById('tree').addEventListener('click',function(e){
+  var el=e.target.closest('[data-action]');if(!el)return;
+  var action=el.getAttribute('data-action');
+  var ni=parseInt(el.getAttribute('data-ni')||'0',10);
+  var bi=parseInt(el.getAttribute('data-bi')||'0',10);
+  var ci=parseInt(el.getAttribute('data-ci')||'0',10);
+  var co=companies[ni]||getCo(curCo);
+  if(action==='selco'&&co) selectCo(co.id);
+  else if(action==='delco'&&co) removeCo(co.id);
+  else if(action==='selbank'){var cur=getCo(curCo);if(cur&&cur.banks[bi]) selectBank(cur.banks[bi].id);}
+  else if(action==='delbank'){var cur=getCo(curCo);if(cur&&cur.banks[bi]) removeBank(curCo,cur.banks[bi].id);}
+  else if(action==='selcard'){var cur=getCo(curCo);if(cur&&cur.banks[bi]&&cur.banks[bi].cards[ci]) selectCard(cur.banks[bi].cards[ci].id);}
+  else if(action==='delcard'){var cur=getCo(curCo);if(cur&&cur.banks[bi]&&cur.banks[bi].cards[ci]) removeCard(curCo,cur.banks[bi].id,cur.banks[bi].cards[ci].id);}
+});
+
+// ─── Content ──────────────────────────────────────────────────────────────
+function renderContent(){
+  var el=document.getElementById('content');
+  if(!curCo){el.innerHTML='<div class="ph"><div class="ph-ic">&#128194;</div><div class="ph-t">No company selected</div><div class="ph-s">Add a company and upload a CSV statement. Cards will be grouped by bank automatically.</div></div>';return;}
+  var co=getCo(curCo);if(!co)return;
+  // If a specific card is selected
+  if(curCard){
+    for(var i=0;i<co.banks.length;i++){
+      var card=co.banks[i].cards.find(function(c){return c.id===curCard;});
+      if(card){renderCardView(el,co.banks[i],card);return;}
+    }
+  }
+  // If a specific bank is selected
+  if(curBank){
+    var bank=co.banks.find(function(b){return b.id===curBank;});
+    if(bank){renderBankView(el,co,bank);return;}
+  }
+  renderCoView(el,co);
+}
+
+function aggregateTxs(txs){
+  var bycat={};
+  txs.forEach(function(tx){
+    if(!bycat[tx.cat]) bycat[tx.cat]={total:0,count:0,txs:[]};
+    bycat[tx.cat].total+=tx.amount;bycat[tx.cat].count++;bycat[tx.cat].txs.push(tx);
+  });
+  return bycat;
+}
+
+// ─── Company overview ─────────────────────────────────────────────────────
+function getLatestPeriod(co){
+  var ps={};
+  co.banks.forEach(function(b){b.cards.forEach(function(c){c.txs.forEach(function(t){if(t.period)ps[t.period]=true;});});});
+  var periods=Object.keys(ps).sort();
+  return periods.length?periods[periods.length-1]:null;
+}
+
+// ─── Sortable transactions list ───────────────────────────────────────────
+// Built for the company view in the Expenses tab. Has its own filter, search,
+// sort, and pagination — all client-side. Renders via #txListSection.
+
+function collectCoTxs(co){
+  var rows=[];
+  co.banks.forEach(function(b){b.cards.forEach(function(c){c.txs.forEach(function(t){
+    rows.push({
+      tx:t,
+      date:t.date||'',
+      amount:t.amount||0,
+      cardholder:c.displayName,
+      cardNo:c.card_no||'',
+      bank:b.name,
+      bankType:b.bankType,
+      vendor:normalizeVendor(t.description),
+      description:t.description||'',
+      category:t.cat||'Other',
+      period:t.period||'',
+      flagged:!!t.flagged,
+      reviewed:!!t.reviewed,
+      cardId:c.id,bankId:b.id
+    });
+  });});});
+  return rows;
+}
+
+function applyTxFilter(rows){
+  var thirtyAgo=null;
+  if(txViewFilter==='recent30'){
+    var d=new Date();d.setDate(d.getDate()-30);
+    thirtyAgo=d.toISOString().substring(0,10);
+  }
+  return rows.filter(function(r){
+    if(txViewFilter==='flagged' && !r.flagged) return false;
+    if(txViewFilter==='unreviewed' && (!r.flagged||r.reviewed)) return false;
+    if(txViewFilter==='large' && r.amount<500) return false;
+    if(txViewFilter==='recent30' && r.date<thirtyAgo) return false;
+    if(txViewFilter==='custom'){
+      if(customStart && r.period<customStart) return false;
+      if(customEnd && r.period>customEnd) return false;
+    }
+    if(txSearch){
+      var q=txSearch.toLowerCase();
+      var hay=(r.description+' '+r.vendor+' '+r.cardholder+' '+r.category+' '+r.bank).toLowerCase();
+      if(hay.indexOf(q)<0) return false;
+    }
+    return true;
+  });
+}
+
+function sortTxRows(rows){
+  var f=txSortField,dir=txSortDir==='asc'?1:-1;
+  return rows.slice().sort(function(a,b){
+    var av,bv;
+    if(f==='amount'){av=a.amount;bv=b.amount;}
+    else if(f==='date'){av=a.date;bv=b.date;}
+    else if(f==='cardholder'){av=a.cardholder.toLowerCase();bv=b.cardholder.toLowerCase();}
+    else if(f==='vendor'){av=a.vendor.toLowerCase();bv=b.vendor.toLowerCase();}
+    else if(f==='category'){av=a.category.toLowerCase();bv=b.category.toLowerCase();}
+    else if(f==='bank'){av=a.bank.toLowerCase();bv=b.bank.toLowerCase();}
+    else {av=a[f];bv=b[f];}
+    if(av<bv) return -1*dir;
+    if(av>bv) return 1*dir;
+    return 0;
+  });
+}
+
+function setTxFilter(v){txViewFilter=v;txPage=0;refreshTxList();}
+function setTxSearch(v){txSearch=v;txPage=0;refreshTxList();}
+function setTxSort(f){
+  if(txSortField===f){txSortDir=txSortDir==='asc'?'desc':'asc';}
+  else{txSortField=f;txSortDir=f==='amount'||f==='date'?'desc':'asc';}
+  refreshTxList();
+}
+function setTxPage(p){txPage=p;refreshTxList();}
+function toggleTxShow(){TX_SHOW=!TX_SHOW;refreshTxList();}
+
+function refreshTxList(){
+  var el=document.getElementById('txListSection');
+  if(!el){return;}
+  var co=getCo(curCo);
+  if(!co){el.innerHTML='';return;}
+  el.innerHTML=buildTxListSection(co);
+}
+
+function buildTxListSection(co){
+  var rows=collectCoTxs(co);
+  var filtered=applyTxFilter(rows);
+  var sorted=sortTxRows(filtered);
+  var totalPages=Math.max(1,Math.ceil(sorted.length/TX_PAGE_SIZE));
+  if(txPage>=totalPages) txPage=totalPages-1;
+  if(txPage<0) txPage=0;
+  var pageRows=sorted.slice(txPage*TX_PAGE_SIZE,(txPage+1)*TX_PAGE_SIZE);
+  
+  var filterOpts=[
+    {v:'all',l:'All transactions'},
+    {v:'flagged',l:'Flagged only'},
+    {v:'unreviewed',l:'Unreviewed flagged'},
+    {v:'large',l:'Large charges ($500+)'},
+    {v:'recent30',l:'Recent (last 30 days)'},
+    {v:'custom',l:'Custom date range'}
+  ];
+  var dropdownSt='background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;color:var(--text);font-family:Plus Jakarta Sans,sans-serif;font-size:12px;outline:none;cursor:pointer;';
+  var filterDD='<select onchange="setTxFilter(this.value)" style="'+dropdownSt+'">'
+    +filterOpts.map(function(o){return'<option value="'+o.v+'"'+(o.v===txViewFilter?' selected':'')+'>'+o.l+'</option>';}).join('')
+    +'</select>';
+  
+  var inputSt='background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:5px 8px;color:var(--text);font-family:JetBrains Mono,monospace;font-size:11px;outline:none;';
+  var rangeInputs=txViewFilter==='custom'
+    ?'<input type="month" value="'+esc(customStart||'')+'" onchange="customStart=this.value;refreshTxList();" style="'+inputSt+'" title="Start month"/>'
+      +'<span style="font-size:11px;color:var(--dim);">to</span>'
+      +'<input type="month" value="'+esc(customEnd||'')+'" onchange="customEnd=this.value;refreshTxList();" style="'+inputSt+'" title="End month"/>'
+    :'';
+  
+  // Header bar with toggle/filter/search
+  var headerBar='<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;'+(TX_SHOW?'border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-color:transparent;':'')+'">'
+    +'<div style="display:flex;align-items:center;gap:10px;">'
+      +'<button class="gbtn" onclick="toggleTxShow()" style="font-size:12px;padding:6px 12px;">'+(TX_SHOW?'&#9660;':'&#9654;')+' Transactions list</button>'
+      +'<span style="font-size:11px;color:var(--dim);font-family:JetBrains Mono,monospace;">'+filtered.length+' result'+(filtered.length!==1?'s':'')+'</span>'
+    +'</div>';
+  if(TX_SHOW){
+    headerBar+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+      +'<span style="font-size:11px;color:var(--muted);font-family:JetBrains Mono,monospace;">Filter:</span>'+filterDD+rangeInputs
+      +'<input type="text" placeholder="Search..." value="'+esc(txSearch)+'" oninput="setTxSearch(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;color:var(--text);font-family:Plus Jakarta Sans,sans-serif;font-size:12px;outline:none;width:160px;"/>'
+    +'</div>';
+  }
+  headerBar+='</div>';
+  
+  if(!TX_SHOW) return headerBar;
+  
+  // Table body
+  function sortArrow(f){
+    if(txSortField!==f) return '<span style="color:var(--border);">&#x2195;</span>';
+    return '<span style="color:var(--accent);">'+(txSortDir==='asc'?'&#9650;':'&#9660;')+'</span>';
+  }
+  function sortHeader(f,label){
+    return '<th style="cursor:pointer;user-select:none;" onclick="setTxSort(\''+f+'\')">'+label+' '+sortArrow(f)+'</th>';
+  }
+  var tableHead='<thead><tr>'
+    +sortHeader('date','Date')
+    +sortHeader('cardholder','Cardholder')
+    +sortHeader('bank','Bank')
+    +sortHeader('vendor','Vendor')
+    +sortHeader('category','Category')
+    +sortHeader('amount','Amount')
+    +'<th style="text-align:center;">Status</th>'
+  +'</tr></thead>';
+  var tbody=pageRows.map(function(r){
+    var statusBadge=r.flagged
+      ?(r.reviewed?'<span style="background:var(--green-bg);color:var(--green);font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;">&#10003; Reviewed</span>':'<span style="background:var(--red-bg);color:var(--red);font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;">&#9888; Flagged</span>')
+      :'';
+    return '<tr style="border-bottom:1px solid var(--border);">'
+      +'<td style="padding:8px 12px;font-family:JetBrains Mono,monospace;font-size:11px;color:var(--muted);white-space:nowrap;">'+esc(r.date)+'</td>'
+      +'<td style="padding:8px 12px;font-size:12px;color:var(--text);font-weight:600;">'+esc(r.cardholder)+' <span style="color:var(--dim);font-family:JetBrains Mono,monospace;font-weight:500;font-size:10px;">·'+esc(r.cardNo||'?')+'</span></td>'
+      +'<td style="padding:8px 12px;font-size:12px;color:'+bankColor(r.bankType)+';font-weight:600;">'+esc(r.bank)+'</td>'
+      +'<td style="padding:8px 12px;font-size:12px;color:var(--text);">'+esc(r.vendor)+'</td>'
+      +'<td style="padding:8px 12px;font-size:11px;color:'+catColor(r.category)+';font-weight:600;">'+esc(r.category)+'</td>'
+      +'<td style="padding:8px 12px;font-size:12px;font-weight:700;color:'+(r.amount>=500?'var(--red)':'var(--text)')+';text-align:right;font-family:JetBrains Mono,monospace;">'+fmt(r.amount)+'</td>'
+      +'<td style="padding:8px 12px;text-align:center;">'+statusBadge+'</td>'
+    +'</tr>';
+  }).join('');
+  if(!pageRows.length) tbody='<tr><td colspan="7" style="padding:24px;text-align:center;font-size:12px;color:var(--dim);">No transactions match the current filter.</td></tr>';
+  
+  // Pagination
+  var pagination='';
+  if(totalPages>1){
+    var startIdx=txPage*TX_PAGE_SIZE+1;
+    var endIdx=Math.min((txPage+1)*TX_PAGE_SIZE,sorted.length);
+    pagination='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--dim);font-family:JetBrains Mono,monospace;">'
+      +'<span>Showing '+startIdx+'&ndash;'+endIdx+' of '+sorted.length+'</span>'
+      +'<div style="display:flex;gap:4px;align-items:center;">'
+        +'<button class="sbtn" '+(txPage===0?'disabled':'')+' onclick="setTxPage('+(txPage-1)+')" style="font-size:11px;padding:4px 10px;">&#8592; Prev</button>'
+        +'<span style="padding:0 8px;">Page '+(txPage+1)+' of '+totalPages+'</span>'
+        +'<button class="sbtn" '+(txPage>=totalPages-1?'disabled':'')+' onclick="setTxPage('+(txPage+1)+')" style="font-size:11px;padding:4px 10px;">Next &#8594;</button>'
+      +'</div>'
+    +'</div>';
+  }
+  
+  return headerBar
+    +'<div style="background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--rs) var(--rs);">'
+      +'<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">'+tableHead+'<tbody>'+tbody+'</tbody></table></div>'
+      +pagination
+    +'</div>';
+}
+
+// ─── Company view ─────────────────────────────────────────────────────────
+function renderCoView(el,co){
+  // Determine which period to show
+  var latestPeriod=getLatestPeriod(co);
+  var allPeriodsInCo={};
+  co.banks.forEach(function(b){b.cards.forEach(function(c){c.txs.forEach(function(t){if(t.period)allPeriodsInCo[t.period]=true;});});});
+  
+  // Validate selectedPeriod. Allow: null (first visit), '' (all), 'custom', or known period.
+  if(selectedPeriod===null) selectedPeriod=latestPeriod;
+  else if(selectedPeriod!=='' && selectedPeriod!=='custom' && !allPeriodsInCo[selectedPeriod]) selectedPeriod=latestPeriod;
+  
+  // Filter helper using the period selection
+  function matchPeriod(t){return periodMatches(t.period,selectedPeriod,customStart,customEnd);}
+  
+  // Collect all transactions to show
+  var allTxs=[];
+  co.banks.forEach(function(b){b.cards.forEach(function(c){
+    allTxs=allTxs.concat(c.txs.filter(matchPeriod));
+  });});
+  
+  var bycat=aggregateTxs(allTxs);
+  var loadedBanks=co.banks.filter(function(b){return b.cards.some(function(c){return c.txs.length>0;});});
+  var allFlags=[];
+  co.banks.forEach(function(bank){bank.cards.forEach(function(card){
+    card.txs.filter(matchPeriod).filter(function(t){return t.flagged;}).forEach(function(tx,i){allFlags.push({person:card.displayName+' ('+bank.name+')',tx:tx,key:card.id+'|'+(tx.dbId||tx.description)});});
+  });});
+
+  // Summary table: rows = banks, each bank shows its cards
+  var cats=Object.keys(bycat).sort(function(a,b){return bycat[b].total-bycat[a].total;});
+  var grandTot={_t:0};cats.forEach(function(c){grandTot[c]=0;});
+
+  var tableRows='';
+  co.banks.forEach(function(bank,bi){
+    var col=bankColor(bank.bankType);
+    var bankTxs=[];
+    bank.cards.forEach(function(c){
+      bankTxs=bankTxs.concat(c.txs.filter(matchPeriod));
+    });
+    var bankTot=bankTxs.reduce(function(s,t){return s+t.amount;},0);
+    // Bank header row
+    var bankRight='<span style="font-size:11px;color:var(--muted);font-family:JetBrains Mono,monospace;">'+bank.cards.length+' cards · '+fmt(bankTot)+'</span><button class="sbtn" style="margin-left:auto;opacity:1;" onclick="showUploadModal('+sq(bank.id)+')">&#8593; Upload</button>';
+    tableRows+=bankSectionRow(bank,cats.length+2,bankRight);
+    // Card rows
+    bank.cards.forEach(function(card,ci){
+      var filteredTxs=card.txs.filter(matchPeriod);
+      var pb=aggregateTxs(filteredTxs);
+      var pTotal=0;
+      cats.forEach(function(c){var v=pb[c]?pb[c].total:0;grandTot[c]+=v;pTotal+=v;});
+      grandTot._t+=pTotal;
+      var fl=filteredTxs.filter(function(t){return t.flagged&&!t.reviewed;}).length;
+      var hasData=filteredTxs.length>0;
+      var isEditing=editingCard===card.id;
+      var avIdx=bi*10+ci;
+      var nameCell=isEditing
+        ?'<div style="display:flex;align-items:center;gap:6px;"><input class="name-input" id="nameEditInput" value="'+esc(card.displayName)+'" onkeydown="if(event.key===\'Enter\')renameCard('+sq(curCo)+','+sq(bank.id)+','+sq(card.id)+',this.value.trim())"><button class="save-btn" onclick="renameCard('+sq(curCo)+','+sq(bank.id)+','+sq(card.id)+',document.getElementById(\'nameEditInput\').value.trim())">Save</button></div>'
+        :'<div class="pinfo"><div class="pname">'+esc(card.displayName)+' <span style="color:var(--dim);font-family:JetBrains Mono,monospace;font-weight:500;font-size:11px;">·'+esc(card.card_no||'?')+'</span></div><div class="pstat">'+card.txs.length+' tx'+(fl?' · <span style="color:var(--red)">'+fl+' to review</span>':'')+(hasData?' · '+periodLabel(detectPeriod(card.txs)):'')+'</div></div>';
+      var cells=cats.map(function(c){
+        var v=pb[c]?pb[c].total:0;
+        var isFlag=FLAG_CATS.indexOf(c.toLowerCase())>=0;
+        var onclickStr=hasData&&v>0?'selectCard('+sq(card.id)+');setTimeout(function(){openDrill('+sq(c)+','+sq(card.id)+')},60)':null;
+        return cell(fmt(v),{dim:v===0||!hasData,red:isFlag&&v>0,click:hasData&&v>0,onclick:onclickStr});
+      }).join('');
+      tableRows+='<tr><td><div class="ci lft"><div class="av" style="'+avStyle(avIdx)+'">'+initials(card.displayName)+'</div>'+nameCell
+        +'<div class="pacts"><button class="editbtn" onclick="startEdit('+sq(curCo)+','+sq(bank.id)+','+sq(card.id)+')">&#9998;</button>'
+        +'<button class="rebtn" onclick="uploadState.pendingReupload={bankId:'+sq(bank.id)+',cardId:'+sq(card.id)+'};document.getElementById(\'fileInput\').click()">re-upload</button>'
+        +'<button class="delbtn" onclick="removeCard('+sq(curCo)+','+sq(bank.id)+','+sq(card.id)+')">×</button></div>'
+        +'</div></td>'+cells+cell(hasData?fmt(pTotal):'—',{bold:true})+'</tr>';
+    });
+  });
+
+  var footCells=cats.map(function(c){return cell(fmt(grandTot[c]),{red:FLAG_CATS.indexOf(c.toLowerCase())>=0,bold:true});}).join('');
+  var thead='<thead><tr><th class="lft">Cardholder</th>'+cats.map(function(c){return'<th><span style="color:'+catColor(c)+'">'+c+'</span></th>';}).join('')+'<th style="color:var(--muted)">Total</th></tr></thead>';
+  var tfoot='<tr class="foot">'+totalsLabelCell()+footCells+cell(fmt(grandTot._t),{bold:true})+'</tr>';
+
+  // Build period selector
+  var allPeriods=Object.keys(allPeriodsInCo).sort();
+  var periodSelector=buildPeriodSelector(allPeriods,selectedPeriod,'selectedPeriod=this.value;renderContent();');
+
+  var titleLabel=selectedPeriod===''?'All Months'
+    :selectedPeriod==='custom'?customRangeLabel()
+    :periodLabel(selectedPeriod);
+  el.innerHTML=
+    '<div class="ptop"><div class="ptitle">'+esc(co.name)+' <span>/ '+titleLabel+'</span></div>'
+    +'<div class="btns">'+periodSelector+'<button class="gbtn" onclick="showUploadModal(null)">&#8593; Upload</button>'+'<button class="gbtn" onclick="showBoxImportModal()" style="display:flex;align-items:center;gap:6px;"><span style="background:#0061d5;color:#fff;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;">Box</span> Import</button>'+'</div></div>'
+    +(allTxs.length>0?buildTiles(bycat,'co'):'')
+    +'<div class="panel"><div class="panel-top"><div class="panel-ttl">Spending by bank &amp; cardholder</div></div>'
+    +(allTxs.length>0?'<div class="panel-scroll"><table>'+thead+'<tbody>'+tableRows+tfoot+'</tbody></table></div>':'<div style="padding:20px 16px;font-size:13px;color:var(--dim);">Upload a statement to see spending.</div>')
+    +'</div>'
+    +(allTxs.length>0?buildChecklist(allFlags):'')
+    +(allTxs.length>0?'<div id="txListSection" style="margin-top:24px;">'+buildTxListSection(co)+'</div>':'');
+}
+
+// ─── Bank view ────────────────────────────────────────────────────────────
+function renderBankView(el,co,bank){
+  var allBankTxs=[];bank.cards.forEach(function(c){allBankTxs=allBankTxs.concat(c.txs);});
+  var periods=getPeriodsFromTxs(allBankTxs);
+  if(selectedPeriod===null) selectedPeriod=periods.length?periods[periods.length-1]:null;
+  else if(selectedPeriod!=='' && selectedPeriod!=='custom' && periods.indexOf(selectedPeriod)<0) selectedPeriod=periods.length?periods[periods.length-1]:null;
+  
+  function matchPeriod(t){return periodMatches(t.period,selectedPeriod,customStart,customEnd);}
+  var allTxs=[];bank.cards.forEach(function(c){allTxs=allTxs.concat(c.txs.filter(matchPeriod));});
+  var bycat=aggregateTxs(allTxs);
+  var col=bankColor(bank.bankType);
+  var flags=[];
+  bank.cards.forEach(function(card){card.txs.filter(matchPeriod).filter(function(t){return t.flagged;}).forEach(function(tx,i){flags.push({person:card.displayName,tx:tx,key:card.id+'|'+(tx.dbId||tx.description)});});});
+  var periodSel=buildPeriodSelector(periods,selectedPeriod,'selectedPeriod=this.value;renderContent()');
+  var emptyTxt=selectedPeriod===''?'.':(selectedPeriod==='custom'?' in this date range.':' for this period.');
+  el.innerHTML=
+    '<div class="ptop"><div class="ptitle">'+esc(co.name)+' <span>/ <span style="color:'+col+'">'+esc(bank.name)+'</span></span></div>'
+    +'<div class="btns">'+periodSel+'<button class="gbtn" onclick="showUploadModal('+sq(bank.id)+')">&#8593; Upload</button><button class="gbtn" onclick="curBank=null;render()">&#8592; Back</button></div></div>'
+    +(allTxs.length>0?buildTiles(bycat,bank.id):'<div style="padding:20px;font-size:13px;color:var(--dim);">No transactions'+emptyTxt+'</div>')
+    +buildChecklist(flags);
+}
+
+// ─── Card view ────────────────────────────────────────────────────────────
+function renderCardView(el,bank,card){
+  var periods=getPeriodsFromTxs(card.txs);
+  if(selectedPeriod===null) selectedPeriod=periods.length?periods[periods.length-1]:null;
+  else if(selectedPeriod!=='' && selectedPeriod!=='custom' && periods.indexOf(selectedPeriod)<0) selectedPeriod=periods.length?periods[periods.length-1]:null;
+  
+  function matchPeriod(t){return periodMatches(t.period,selectedPeriod,customStart,customEnd);}
+  var filteredCardTxs=card.txs.filter(matchPeriod);
+  var bycat=aggregateTxs(filteredCardTxs);
+  var col=bankColor(bank.bankType);
+  var flags=filteredCardTxs.filter(function(t){return t.flagged;}).map(function(tx,i){return{person:card.displayName,tx:tx,key:card.id+'|'+(tx.dbId||tx.description)};});
+  var periodSel=buildPeriodSelector(periods,selectedPeriod,'selectedPeriod=this.value;renderContent()');
+  var emptyTxt=selectedPeriod===''?'.':(selectedPeriod==='custom'?' in this date range.':' for this period.');
+  el.innerHTML=
+    '<div class="ptop"><div class="ptitle">'+esc(card.displayName)+' <span style="color:'+col+'">/ '+esc(bank.name)+'</span></div>'
+    +'<div class="btns">'+periodSel
+    +'<button class="gbtn" onclick="uploadState.pendingReupload={bankId:'+sq(bank.id)+',cardId:'+sq(card.id)+'};document.getElementById(\'fileInput\').click()">&#8593; Re-upload</button>'
+    +'<button class="gbtn" onclick="curCard=null;render()">&#8592; Back</button></div></div>'
+    +(filteredCardTxs.length>0?buildTiles(bycat,card.id):'<div style="padding:20px;font-size:13px;color:var(--dim);">No transactions'+emptyTxt+'</div>')
+    +buildChecklist(flags);
+}
+
+// ─── Tiles ────────────────────────────────────────────────────────────────
+function buildTiles(bycat,scope){
+  var cats=Object.keys(bycat).sort(function(a,b){return bycat[b].total-bycat[a].total;});
+  if(!cats.length) return '';
+  var h='<div class="tiles">';
+  cats.forEach(function(cat){
+    var d=bycat[cat],col=catColor(cat),isFlag=FLAG_CATS.indexOf(cat.toLowerCase())>=0;
+    h+='<div class="tile" style="border-top-color:'+col+';" onclick="openDrill('+sq(cat)+','+sq(scope)+')">';
+    h+='<div class="tile-amt" style="'+(isFlag?'color:var(--red)':'')+'">'+fmt(d.total)+'</div>';
+    h+='<div class="tile-lbl" style="color:'+col+'">'+cat+'</div>';
+    h+='<div class="tile-ct">'+d.count+' transaction'+(d.count!==1?'s':'')+'</div>';
+    h+='</div>';
+  });
+  return h+'</div>';
+}
+
+// ─── Drill modal ──────────────────────────────────────────────────────────
+function openDrill(cat,scope){
+  var txs=[],co=getCo(curCo),col=catColor(cat);
+  var isCoScope=scope==='co';
+  var isBankScope=!isCoScope&&co.banks.some(function(b){return b.id===scope;});
+  var periodFilter=selectedPeriod;
+  function matchesPeriod(t){return!periodFilter||t.period===periodFilter;}
+  if(isCoScope){co.banks.forEach(function(b){b.cards.forEach(function(c){c.txs.filter(function(t){return t.cat===cat&&matchesPeriod(t);}).forEach(function(t){txs.push(Object.assign({},t,{_who:c.displayName}));});});});}
+  else if(isBankScope){var bank=co.banks.find(function(b){return b.id===scope;});if(bank)bank.cards.forEach(function(c){c.txs.filter(function(t){return t.cat===cat&&matchesPeriod(t);}).forEach(function(t){txs.push(Object.assign({},t,{_who:c.displayName}));});});}
+  else{co.banks.forEach(function(b){var c=b.cards.find(function(c){return c.id===scope;});if(c)c.txs.filter(function(t){return t.cat===cat&&matchesPeriod(t);}).forEach(function(t){txs.push(Object.assign({},t,{_who:c.displayName}));});});}
+  var total=txs.reduce(function(s,t){return s+t.amount;},0);
+  var multi=txs.some(function(t,i){return i>0&&t._who!==txs[0]._who;});
+  var cols=multi?'110px 90px 1fr 120px 80px':'90px 1fr 120px 80px';
+  var head='<div class="mhead" style="grid-template-columns:'+cols+';">'+(multi?'<div>Card</div>':'')+'<div>Date</div><div>Description</div><div>Category</div><div style="text-align:right">Amount</div></div>';
+  var rows=txs.map(function(tx){return'<div class="mrow'+(tx.flagged?' flag':'')+'" style="grid-template-columns:'+cols+';">'+(multi?'<div class="mdate">'+esc(tx._who)+'</div>':'')+'<div class="mdate">'+esc(tx.date)+'</div><div><div class="mdesc">'+esc(tx.description)+'</div>'+(tx.flagged&&tx.flagReason?'<div class="mwhy">⚠ '+esc(tx.flagReason)+'</div>':'')+'</div><div><span class="badge" style="background:'+col+'22;color:'+col+';">'+esc(cat)+'</span></div><div class="mamt" style="color:'+(tx.flagged?'var(--red)':'var(--text)')+';">'+fmt(tx.amount)+'</div></div>';}).join('')||'<div style="padding:30px;text-align:center;font-size:13px;color:var(--dim);">No transactions.</div>';
+  showModal(cat+' — '+fmt(total)+' ('+txs.length+')',head+rows);
+}
+
+// ─── Checklist ────────────────────────────────────────────────────────────
+function buildChecklist(flags){
+  if(!flags.length) return'<div class="ok-banner">&#10003; No flagged transactions — all spending looks clean.</div>';
+  var pending=flags.filter(function(f){return!f.tx.reviewed;});
+  var reviewed=flags.filter(function(f){return f.tx.reviewed;});
+  pending.sort(function(a,b){var al=a.tx.amount>=1000,bl=b.tx.amount>=1000;if(al&&!bl)return-1;if(!al&&bl)return 1;return b.tx.amount-a.tx.amount;});
+  if(!pending.length&&!reviewed.length) return'<div class="ok-banner">&#10003; All flagged transactions reviewed.</div>';
+  function makeItem(f,isDone){
+    var large=f.tx.amount>=1000;
+    var bg=isDone?'var(--green-bg)':(large?'var(--red2-bg)':'var(--red-bg)');
+    var bd=isDone?'var(--green-bd)':(large?'var(--red2-bd)':'var(--red-bd)');
+    var ac=isDone?'var(--green)':(large?'var(--red2)':'var(--red)');
+    return'<div class="ck-item'+(isDone?' done':'')+'" style="background:'+bg+';border:1px solid '+bd+';" onclick="toggleReview('+sq(f.key)+')">'
+      +'<div class="ck-box" style="border-color:'+bd+';'+(isDone?'background:var(--green);':'')+'"><span class="ck-tick" style="'+(isDone?'display:block':'display:none')+'">&#10003;</span></div>'
+      +'<div class="ck-body"><div class="ck-who" style="color:'+ac+';">'+esc(f.person)+'</div><div class="ck-desc">'+esc(f.tx.description)+'</div>'+(f.tx.flagReason?'<div class="ck-why" style="color:'+(isDone?'var(--dim)':ac)+';">'+esc(f.tx.flagReason)+'</div>':'')+'</div>'
+      +'<div class="ck-amt" style="color:'+(isDone?'var(--dim)':ac)+';">'+fmt(f.tx.amount)+'</div></div>';
+  }
+  var h='<div class="cklist"><div class="ck-hdr"><div class="ck-title">Flagged — review checklist</div><div class="ck-prog">'+reviewed.length+' / '+flags.length+' reviewed</div></div>';
+  h+=pending.map(function(f){return makeItem(f,false);}).join('');
+  if(reviewed.length) h+='<div class="reviewed-label">Reviewed ('+reviewed.length+')</div>'+reviewed.map(function(f){return makeItem(f,true);}).join('');
+  return h+'</div>';
+}
+
+async function toggleReview(key){
+  // key format: cardId|dbId
+  var parts=key.split('|');
+  var cardId=parts[0], dbId=parts[1];
+  var co=getCo(curCo);if(!co)return;
+  var tx=null;
+  for(var i=0;i<co.banks.length;i++){
+    var c=co.banks[i].cards.find(function(c){return c.id===cardId;});
+    if(c){tx=c.txs.find(function(t){return t.dbId===dbId;});break;}
+  }
+  if(!tx)return;
+  tx.reviewed=!tx.reviewed;
+  if(dbId) await sb.from('transactions').update({reviewed:tx.reviewed}).eq('id',dbId);
+  renderContent();
+}
+
+// ─── Upload ────────────────────────────────────────────────────────────────
+function showUploadModal(targetBankId){
+  if(!curCo){alert('Select a company first.');return;}
+  uploadState.targetBankId=targetBankId||null;
+  showModal('Upload Statement',
+    '<div style="display:flex;flex-direction:column;gap:16px;padding:20px;">'
+    +'<div style="font-size:13px;color:var(--muted);line-height:1.6;">The bank is auto-detected from your file. Upload a PDF to get cardholder names, then the matching CSV for transactions.</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+      +'<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:16px;text-align:center;">'
+        +'<div style="font-size:24px;margin-bottom:8px;">&#128196;</div>'
+        +'<div style="font-size:13px;font-weight:700;margin-bottom:4px;">PDF Statement</div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Extracts cardholder names</div>'
+        +'<div id="pdfStatus" style="font-size:11px;color:var(--muted);margin-bottom:8px;">No file selected</div>'
+        +'<button class="pbtn" style="font-size:11px;padding:6px 12px;" onclick="document.getElementById(\'pdfInput\').click()">Choose PDF</button>'
+      +'</div>'
+      +'<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:16px;text-align:center;">'
+        +'<div style="font-size:24px;margin-bottom:8px;">&#128202;</div>'
+        +'<div style="font-size:13px;font-weight:700;margin-bottom:4px;">CSV Export</div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Chase or Capital One</div>'
+        +'<div id="csvStatus" style="font-size:11px;color:var(--muted);margin-bottom:8px;">No file selected</div>'
+        +'<button class="pbtn" style="font-size:11px;padding:6px 12px;" onclick="document.getElementById(\'csvInput\').click()">Choose CSV</button>'
+      +'</div>'
+    +'</div>'
+    +'<div id="uploadProgress" style="display:none;text-align:center;font-size:13px;color:var(--muted);padding:8px;"></div>'
+    +'<button class="pbtn" id="importBtn" onclick="runImport()" style="width:100%;">Import Transactions</button>'
+    +'</div>'
+  );
+}
+
+document.getElementById('fileInput').addEventListener('change',function(e){
+  var f=e.target.files[0];if(!f){e.target.value='';return;}
+  if(uploadState.pendingReupload){
+    var r=new FileReader();
+    r.onload=function(ev){doCSVReupload(ev.target.result,uploadState.pendingReupload.bankId,uploadState.pendingReupload.cardId);uploadState.pendingReupload=null;};
+    r.readAsText(f);e.target.value='';
+  }
+});
+
+window.addEventListener('load',function(){
+  // Set theme button icon based on current theme
+  var themeBtn=document.getElementById('themeBtn');
+  if(themeBtn){
+    var dark=document.documentElement.getAttribute('data-theme')==='dark';
+    themeBtn.innerHTML=dark?'&#9728;':'&#9789;';
+  }
+  var pi=document.createElement('input');
+  pi.type='file';pi.id='pdfInput';pi.accept='.pdf';pi.style.display='none';
+  pi.addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var el=document.getElementById('pdfStatus');if(el){el.textContent=f.name;el.style.color='var(--green)';}
+    var r=new FileReader();
+    r.onload=function(ev){
+      uploadState.pdfBuffer=ev.target.result;
+      console.log('PDF loaded, size:', ev.target.result.byteLength, 'bytes');
+    };
+    r.onerror=function(e){console.error('PDF read error:',e);};
+    r.readAsArrayBuffer(f);
+    e.target.value='';
+  });
+  document.body.appendChild(pi);
+
+  var ci=document.createElement('input');
+  ci.type='file';ci.id='csvInput';ci.accept='.csv';ci.style.display='none';
+  ci.addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var el=document.getElementById('csvStatus');if(el){el.textContent=f.name;el.style.color='var(--green)';}
+    uploadState.csvFileName=f.name;
+    var r=new FileReader();r.onload=function(ev){uploadState.csvText=ev.target.result;};r.readAsText(f);e.target.value='';
+  });
+  document.body.appendChild(ci);
+});
+
+// Core import logic — no DOM coupling. opts: {pdfBuffer, targetBankId, onProgress}.
+// Used by both the manual upload modal (runImport) and the Box import modal.
+async function runImportCore(csvText,opts){
+  opts=opts||{};
+  var prog=opts.onProgress||function(){};
+
+  prog('Parsing CSV...');
+  var rows=parseCSV(csvText);
+  if(!rows.length) throw new Error('No transactions found in CSV.');
+
+  var detectedBank=detectBankFromCSV(rows,csvText,opts.fileName);
+  var detectedLower=detectedBank.toLowerCase();
+  var co=getCo(curCo);
+  if(!co) throw new Error('No company selected.');
+
+  // Case-insensitive bank match so "Chase", "chase", "CHASE" all share one bank.
+  var bank=opts.targetBankId
+    ?co.banks.find(function(b){return b.id===opts.targetBankId;})
+    :co.banks.find(function(b){return (b.bankType||'').toLowerCase()===detectedLower;});
+
+  if(!bank){
+    prog('Creating '+detectedBank+' bank...');
+    var {data:newBank,error}=await sb.from('banks').insert({company_id:co.id,name:detectedBank,bank_type:detectedBank}).select().single();
+    if(error) throw new Error('Error creating bank: '+error.message);
+    bank={id:newBank.id,name:detectedBank,bankType:detectedBank,cards:[]};
+    co.banks.push(bank);
+  }
+
+  // Cardholder names: opts.cardNames takes precedence (pre-computed once for a
+  // batch of Box imports). Falls back to parsing opts.pdfBuffer (manual upload).
+  var cardNames=opts.cardNames||{};
+  if(!opts.cardNames && opts.pdfBuffer){
+    try{
+      prog('Reading PDF names...');
+      var pdfText=await extractTextFromPDF(opts.pdfBuffer);
+      cardNames=parsePDFNames(pdfText);
+    }catch(e){console.error('PDF extraction error:',e);}
+  }
+
+  // Group rows by card, persist each card's new txs
+  var cardMap={};
+  rows.forEach(function(r){var cn=r.cardNo||'Unknown';if(!cardMap[cn])cardMap[cn]=[];cardMap[cn].push(r);});
+
+  prog('Saving transactions...');
+  var totalSaved=0;
+  var cardNums=Object.keys(cardMap);
+  for(var i=0;i<cardNums.length;i++){
+    var cn=cardNums[i];
+    var displayName=lookupPDFName(cardNames,cn);
+    if(!displayName) displayName=cardNames[cn]||cardNames[cn.replace(/^0+/,'')]||cardNames[cn.padStart(4,'0')]||null;
+
+    var newTxs=cardMap[cn].map(categorizeTx).filter(Boolean);
+    newTxs.forEach(function(t){
+      var pd=parseDate(t.date);
+      if(pd) t.period=pd.yr+'-'+String(pd.mo).padStart(2,'0');
+    });
+
+    var existing=bank.cards.find(function(c){return c.card_no===cn;});
+    if(!existing){
+      var finalName=displayName||('Card '+cn);
+      var {data:newCard,error}=await sb.from('cards').insert({bank_id:bank.id,company_id:co.id,card_no:cn,display_name:finalName}).select().single();
+      if(error){console.error(error);continue;}
+      existing={id:newCard.id,card_no:cn,displayName:finalName,txs:[]};
+      bank.cards.push(existing);
+    } else if(displayName){
+      await sb.from('cards').update({display_name:displayName}).eq('id',existing.id);
+      existing.displayName=displayName;
+    }
+
+    await clearPeriodsForCard(existing,newTxs);
+    await saveTransactions(existing.id,newTxs);
+    existing.txs=existing.txs.concat(newTxs);
+    totalSaved+=newTxs.length;
+  }
+  return{totalSaved:totalSaved};
+}
+
+// Thin wrapper around runImportCore for the manual upload modal
+async function runImport(){
+  var btn=document.getElementById('importBtn');
+  var prog=document.getElementById('uploadProgress');
+  if(!uploadState.csvText){alert('Please select a CSV file first.');return;}
+  if(btn)btn.disabled=true;
+  if(prog)prog.style.display='block';
+
+  try{
+    await runImportCore(uploadState.csvText,{
+      fileName:uploadState.csvFileName,
+      pdfBuffer:uploadState.pdfBuffer,
+      targetBankId:uploadState.targetBankId,
+      onProgress:function(msg){if(prog)prog.textContent=msg;}
+    });
+    resetUploadState();
+    closeModal();
+    curCard=null;
+    render();
+  }catch(e){
+    console.error(e);
+    if(btn)btn.disabled=false;
+    if(prog)prog.style.display='none';
+    alert(e.message);
+  }
+}
+
+async function doCSVReupload(text,bankId,cardId){
+  var co=getCo(curCo);if(!co)return;
+  var bank=co.banks.find(function(b){return b.id===bankId;});if(!bank)return;
+  var card=bank.cards.find(function(c){return c.id===cardId;});if(!card)return;
+  var newTxs=parseCSV(text).map(categorizeTx).filter(Boolean);
+  // Assign each tx its own calendar month from transaction date
+  newTxs.forEach(function(t){
+    var pd=parseDate(t.date);
+    if(pd) t.period=pd.yr+'-'+String(pd.mo).padStart(2,'0');
+  });
+  await clearPeriodsForCard(card,newTxs);
+  await saveTransactions(card.id,newTxs);
+  card.txs=card.txs.concat(newTxs);
+  render();
+}
+
+// Shared helper: clears DB+local rows for every period present in `newTxs`
+async function clearPeriodsForCard(card,newTxs){
+  var periods={};
+  newTxs.forEach(function(t){if(t.period)periods[t.period]=true;});
+  var keys=Object.keys(periods);
+  for(var i=0;i<keys.length;i++){
+    await sb.from('transactions').delete().eq('card_id',card.id).eq('statement_period',keys[i]);
+    card.txs=card.txs.filter(function(t){return t.period!==keys[i];});
+  }
+}
+
+async function saveTransactions(cardId,txs){
+  if(!txs.length)return;
+  var rows=txs.map(function(tx){return{card_id:cardId,date:tx.date,description:tx.description,amount:tx.amount,category:tx.cat,flagged:tx.flagged,flag_reason:tx.flagReason||'',reviewed:false,statement_period:tx.period||''};});
+  for(var i=0;i<rows.length;i+=500){
+    var {data,error}=await sb.from('transactions').insert(rows.slice(i,i+500)).select('id');
+    if(!error&&data)data.forEach(function(d,j){if(txs[i+j])txs[i+j].dbId=d.id;});
+  }
+}
+
+// ─── Executive Summary ─────────────────────────────────────────────────────
+function buildExecHeader(){
+  var coOpts='<option value=""'+(execCompanyFilter===''?' selected':'')+'>All Companies</option>'
+    +companies.map(function(c){return'<option value="'+esc(c.id)+'"'+(c.id===execCompanyFilter?' selected':'')+'>'+esc(c.name)+'</option>';}).join('');
+  // Collect periods available across scoped companies for the period dropdown
+  var scoped=execCompanyFilter?companies.filter(function(c){return c.id===execCompanyFilter;}):companies;
+  var periodSet={};
+  scoped.forEach(function(co){co.banks.forEach(function(b){b.cards.forEach(function(c){c.txs.forEach(function(t){if(t.period)periodSet[t.period]=true;});});});});
+  var periods=Object.keys(periodSet).sort();
+  var pSel='background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;color:var(--text);font-family:Plus Jakarta Sans,sans-serif;font-size:12px;outline:none;cursor:pointer;';
+  var periodOpts='<option value=""'+(execSelectedPeriod===''?' selected':'')+'>All Months</option>'
+    +periods.map(function(p){return'<option value="'+p+'"'+(p===execSelectedPeriod?' selected':'')+'>'+periodLabel(p)+'</option>';}).join('')
+    +'<option value="custom"'+(execSelectedPeriod==='custom'?' selected':'')+'>Custom range...</option>';
+  var inputSt='background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:5px 8px;color:var(--text);font-family:JetBrains Mono,monospace;font-size:11px;outline:none;';
+  var rangeInputs=execSelectedPeriod==='custom'
+    ?'<input type="month" value="'+esc(execCustomStart||'')+'" onchange="execCustomStart=this.value;renderExec();" style="'+inputSt+'" title="Start month"/>'
+      +'<span style="font-size:11px;color:var(--dim);">to</span>'
+      +'<input type="month" value="'+esc(execCustomEnd||'')+'" onchange="execCustomEnd=this.value;renderExec();" style="'+inputSt+'" title="End month"/>'
+    :'';
+  return '<div class="ptop">'
+    +'<div class="ptitle">Executive <span>Summary</span></div>'
+    +'<div class="btns" style="flex-wrap:wrap;gap:8px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
+        +'<span style="font-size:12px;color:var(--muted);font-family:JetBrains Mono,monospace;">Company:</span>'
+        +'<select onchange="execCompanyFilter=this.value;renderExec();" style="'+pSel+'">'+coOpts+'</select>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+        +'<span style="font-size:12px;color:var(--muted);font-family:JetBrains Mono,monospace;">Period:</span>'
+        +'<select onchange="execSelectedPeriod=this.value;renderExec();" style="'+pSel+'">'+periodOpts+'</select>'
+        +rangeInputs
+      +'</div>'
+    +'</div>'
+  +'</div>';
+}
+
+function renderExec(){
+  var el=document.getElementById('execContent');
+  // Validate filter — reset if the company was deleted
+  if(execCompanyFilter && !companies.find(function(c){return c.id===execCompanyFilter;})) execCompanyFilter='';
+  var scopedCos=execCompanyFilter?companies.filter(function(c){return c.id===execCompanyFilter;}):companies;
+  // Period filter (same machinery as the main views, but using exec-specific state)
+  function matchExecPeriod(t){return periodMatches(t.period,execSelectedPeriod,execCustomStart,execCustomEnd);}
+  var allTxs=[];
+  scopedCos.forEach(function(co){co.banks.forEach(function(b){b.cards.forEach(function(c){c.txs.filter(matchExecPeriod).forEach(function(tx){allTxs.push(Object.assign({},tx,{_card:c.displayName,_bank:b.name,_co:co.name}));});});});});
+  if(!allTxs.length){
+    var emptyMsg=execCompanyFilter||execSelectedPeriod?'No data for the selected filter.':'No data yet';
+    el.innerHTML=buildExecHeader()+'<div class="ph"><div class="ph-ic">&#128202;</div><div class="ph-t">'+emptyMsg+'</div><div class="ph-s">Upload statements in the Expenses tab first.</div></div>';
+    return;
+  }
+  var totalSpend=allTxs.reduce(function(s,t){return s+t.amount;},0);
+  var totalFlagged=allTxs.filter(function(t){return t.flagged&&!t.reviewed;}).length;
+  var avgTx=totalSpend/allTxs.length;
+  var allCards=[];
+  scopedCos.forEach(function(co){co.banks.forEach(function(b){b.cards.forEach(function(c){var ft=c.txs.filter(matchExecPeriod);if(ft.length)allCards.push({name:c.displayName,bank:b.name,co:co.name,total:ft.reduce(function(s,t){return s+t.amount;},0),flagged:ft.filter(function(t){return t.flagged&&!t.reviewed;}).length});});});});
+  allCards.sort(function(a,b){return b.total-a.total;});
+  var vendors={};
+  allTxs.forEach(function(tx){
+    var v=normalizeVendor(tx.description);
+    if(!vendors[v])vendors[v]={total:0,count:0};
+    vendors[v].total+=tx.amount;vendors[v].count++;
+  });
+  var topVendors=Object.keys(vendors).map(function(v){return{name:v,total:vendors[v].total,count:vendors[v].count};}).sort(function(a,b){return b.total-a.total;}).slice(0,5);
+  var topCharges=allTxs.slice().sort(function(a,b){return b.amount-a.amount;}).slice(0,5);
+  var maxCard=allCards.length?allCards[0].total:1;
+  var maxVendor=topVendors.length?topVendors[0].total:1;
+
+  el.innerHTML=
+    buildExecHeader()
+    +'<div class="exec-grid">'
+      +'<div class="exec-card"><div class="exec-card-title">Total Spend</div><div class="exec-val">'+fmt(totalSpend)+'</div><div class="exec-sub">Across '+scopedCos.length+' company'+(scopedCos.length!==1?'ies':'y')+'</div></div>'
+      +'<div class="exec-card"><div class="exec-card-title">Transactions</div><div class="exec-val">'+allTxs.length+'</div><div class="exec-sub">Avg '+fmt(avgTx)+' each</div></div>'
+      +'<div class="exec-card"><div class="exec-card-title">Cardholders</div><div class="exec-val">'+allCards.length+'</div><div class="exec-sub">Active this period</div></div>'
+      +'<div class="exec-card"><div class="exec-card-title">Pending Review</div><div class="exec-val red">'+totalFlagged+'</div><div class="exec-sub">Flagged transactions</div></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+      +'<div class="panel"><div class="panel-top"><div class="panel-ttl">Top Spenders</div></div><div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;">'
+        +allCards.slice(0,6).map(function(c,i){var pct=(c.total/maxCard*100).toFixed(0);var bcol=bankColor(c.bank);return'<div class="top-item"><span class="top-rank">'+(i+1)+'</span><div style="flex:1;min-width:0;"><div class="top-name">'+esc(c.name)+'</div><div style="font-size:10px;color:var(--dim);"><span style="color:'+bcol+';">'+esc(c.bank)+'</span> · '+esc(c.co)+(c.flagged?' · <span style="color:var(--red)">'+c.flagged+' flagged</span>':'')+'</div><div class="top-bar-wrap" style="width:100%;"><div class="top-bar" style="width:'+pct+'%;"></div></div></div><span class="top-amt">'+fmt(c.total)+'</span></div>';}).join('')
+      +'</div></div>'
+      +'<div class="panel"><div class="panel-top"><div class="panel-ttl">Top Vendors</div></div><div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;">'
+        +topVendors.map(function(v,i){var pct=(v.total/maxVendor*100).toFixed(0);return'<div class="top-item"><span class="top-rank">'+(i+1)+'</span><div style="flex:1;min-width:0;"><div class="top-name">'+esc(v.name)+'</div><div style="font-size:10px;color:var(--dim);">'+v.count+' transaction'+(v.count!==1?'s':'')+'</div><div class="top-bar-wrap" style="width:100%;"><div class="top-bar" style="width:'+pct+'%;background:var(--accent2);"></div></div></div><span class="top-amt">'+fmt(v.total)+'</span></div>';}).join('')
+      +'</div></div>'
+    +'</div>'
+    +'<div class="panel"><div class="panel-top"><div class="panel-ttl">Largest Single Charges</div></div><div class="panel-scroll"><table><thead><tr><th class="lft">Description</th><th class="lft">Cardholder</th><th class="lft">Bank</th><th class="lft">Date</th><th class="lft">Category</th><th>Amount</th></tr></thead><tbody>'
+      +topCharges.map(function(tx){var col=catColor(tx.cat);var bcol=bankColor(tx._bank);return'<tr><td><div class="ci lft" style="font-size:13px;font-weight:600;">'+esc(tx.description)+'</div></td><td><div class="ci lft" style="font-size:12px;color:var(--muted);">'+esc(tx._card)+'</div></td><td><div class="ci lft"><span style="font-size:11px;font-weight:700;color:'+bcol+';">'+esc(tx._bank)+'</span></div></td><td><div class="ci lft" style="font-size:11px;font-family:JetBrains Mono,monospace;color:var(--muted);">'+esc(tx.date)+'</div></td><td><div class="ci lft"><span class="badge" style="background:'+col+'22;color:'+col+';">'+esc(tx.cat)+'</span></div></td><td><div class="ci" style="font-weight:700;color:'+(tx.flagged?'var(--red)':'var(--text)')+';">'+fmt(tx.amount)+'</div></td></tr>';}).join('')
+    +'</tbody></table></div></div>'
+
+    // ── Per-cardholder top 5 ──────────────────────────────────────────────
+    +'<div class="ptop" style="margin-top:4px;"><div class="ptitle" style="font-size:16px;">Top 5 Charges <span>by Cardholder</span></div></div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">'
+    +allCards.map(function(c){
+      // Get top 5 txs for this card
+      var cardTxs=[];
+      scopedCos.forEach(function(co){co.banks.forEach(function(b){var card=b.cards.find(function(x){return x.displayName===c.name&&b.name===c.bank;});if(card)cardTxs=cardTxs.concat(card.txs.filter(matchExecPeriod));});});
+      var top5=cardTxs.slice().sort(function(a,b){return b.amount-a.amount;}).slice(0,5);
+      if(!top5.length) return '';
+      var bcol=bankColor(c.bank);
+      var rows=top5.map(function(tx,i){
+        var col=catColor(tx.cat);
+        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">'
+          +'<span style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--dim);min-width:16px;">'+(i+1)+'</span>'
+          +'<div style="flex:1;min-width:0;">'
+            +'<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(tx.description)+'</div>'
+            +'<div style="display:flex;align-items:center;gap:6px;margin-top:2px;">'
+              +'<span class="badge" style="background:'+col+'22;color:'+col+';font-size:9px;">'+esc(tx.cat)+'</span>'
+              +'<span style="font-size:10px;color:var(--dim);font-family:JetBrains Mono,monospace;">'+esc(tx.date)+'</span>'
+            +'</div>'
+          +'</div>'
+          +'<span style="font-family:JetBrains Mono,monospace;font-size:13px;font-weight:500;color:'+(tx.flagged?'var(--red)':'var(--text)')+';">'+fmt(tx.amount)+'</span>'
+        +'</div>';
+      }).join('');
+      return '<div class="panel">'
+        +'<div class="panel-top">'
+          +'<div style="display:flex;align-items:center;gap:8px;">'
+            +'<div class="av" style="'+avStyle(allCards.indexOf(c))+'">'+initials(c.name)+'</div>'
+            +'<div>'
+              +'<div style="font-size:13px;font-weight:700;">'+esc(c.name)+'</div>'
+              +'<div style="font-size:10px;color:'+bcol+';font-weight:700;">'+esc(c.bank)+'</div>'
+            +'</div>'
+          +'</div>'
+          +'<span style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--muted);">top 5 charges</span>'
+        +'</div>'
+        +'<div style="padding:4px 14px 12px;">'+(rows||'<div style="font-size:12px;color:var(--dim);padding:12px 0;">No transactions.</div>')+'</div>'
+      +'</div>';
+    }).join('')
+    +'</div>';
+
+    // ── Per-card executive summary by month ──────────────────────────────────
+    +'<div class="ptop" style="margin-top:4px;"><div class="ptitle" style="font-size:16px;">Monthly Summary <span>by Cardholder</span></div></div>'
+    +(function(){
+      var html='';
+      companies.forEach(function(co){
+        co.banks.forEach(function(bank){
+          bank.cards.forEach(function(card,ci){
+            if(!card.txs.length) return;
+            var bcol=bankColor(bank.bankType);
+            var avIdx=bank.cards.indexOf(card);
+            // Build monthly totals for this card from its own period set
+            var cardPeriods=getPeriodsFromTxs(card.txs);
+            var monthData=cardPeriods.map(function(p){
+              var txs=card.txs.filter(function(t){return t.period===p;});
+              var total=txs.reduce(function(s,t){return s+t.amount;},0);
+              var flagged=txs.filter(function(t){return t.flagged&&!t.reviewed;}).length;
+              return{period:p,total:total,count:txs.length,flagged:flagged};
+            }).filter(function(m){return m.count>0;});
+            if(!monthData.length) return;
+            var grandTotal=monthData.reduce(function(s,m){return s+m.total;},0);
+            html+='<div class="panel">'
+              +'<div class="panel-top"><div style="display:flex;align-items:center;gap:8px;">'
+                +'<div class="av" style="width:28px;height:28px;font-size:10px;'+avStyle(avIdx)+'">'+initials(card.displayName)+'</div>'
+                +'<div><div style="font-size:13px;font-weight:700;">'+esc(card.displayName)+'</div>'
+                +'<div style="font-size:10px;color:'+bcol+';font-weight:700;">'+esc(bank.name)+' · '+esc(co.name)+'</div></div>'
+              +'</div>'
+              +'<div style="font-family:JetBrains Mono,monospace;font-size:13px;font-weight:600;">'+fmt(grandTotal)+' total</div>'
+              +'</div>'
+              +'<div class="panel-scroll"><table style="min-width:0;">'
+                +'<thead><tr>'
+                  +'<th class="lft">Month</th>'
+                  +'<th>Transactions</th>'
+                  +'<th>Flagged</th>'
+                  +'<th>Total Spend</th>'
+                +'</tr></thead>'
+                +'<tbody>'
+                +monthData.map(function(m){
+                  return'<tr>'
+                    +'<td><div class="ci lft" style="font-weight:600;">'+periodLabel(m.period)+'</div></td>'
+                    +cell(m.count,{color:'var(--muted)'})
+                    +cell(m.flagged>0?'⚠ '+m.flagged:'✓',{color:m.flagged>0?'var(--red)':'var(--green)'})
+                    +cell(fmt(m.total),{bold:true})
+                  +'</tr>';
+                }).join('')
+                +'<tr class="foot">'+totalsLabelCell('TOTAL')
+                +cell(monthData.reduce(function(s,m){return s+m.count;},0),{color:'var(--muted)'})
+                +'<td></td>'
+                +cell(fmt(grandTotal),{bold:true})+'</tr>'
+                +'</tbody>'
+              +'</table></div>'
+            +'</div>';
+          });
+        });
+      });
+      return html;
+    })()
+}
+
+// ─── Spending Trends Chart ────────────────────────────────────────────────
+// Returns {entities:[{id,label,sublabel,color}], values:{entityId:{period:amount}}}
+function buildChartData(scopedCos,periods,viewBy){
+  var entities=[];
+  var values={};
+  var palette=['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#3b82f6','#84cc16','#06b6d4','#a855f7','#eab308','#22c55e','#f43f5e'];
+  function color(i){return palette[i%palette.length];}
+
+  if(viewBy==='company'){
+    scopedCos.forEach(function(co,i){
+      var byP={};periods.forEach(function(p){byP[p]=0;});
+      co.banks.forEach(function(b){b.cards.forEach(function(c){c.txs.forEach(function(t){if(t.period&&byP[t.period]!==undefined)byP[t.period]+=t.amount;});});});
+      entities.push({id:co.id,label:co.name,sublabel:'Company',color:color(i)});
+      values[co.id]=byP;
+    });
+  } else if(viewBy==='bank'){
+    // Group by bank name (so two "Chase" entries from different companies merge)
+    var byBank={};
+    scopedCos.forEach(function(co){co.banks.forEach(function(b){
+      if(!b.cards.some(function(c){return c.txs.length;})) return;
+      if(!byBank[b.name]) byBank[b.name]={bankType:b.bankType,periods:{}};
+      b.cards.forEach(function(c){c.txs.forEach(function(t){if(t.period){byBank[b.name].periods[t.period]=(byBank[b.name].periods[t.period]||0)+t.amount;}});});
+    });});
+    Object.keys(byBank).sort().forEach(function(name,i){
+      var info=byBank[name];
+      var byP={};periods.forEach(function(p){byP[p]=info.periods[p]||0;});
+      var bc=bankColor(info.bankType);
+      entities.push({id:'bank:'+name,label:name,sublabel:'Bank',color:bc||color(i)});
+      values['bank:'+name]=byP;
+    });
+  } else { // cardholder — group by displayName across all banks/cards
+    var byName={};
+    scopedCos.forEach(function(co){co.banks.forEach(function(b){b.cards.forEach(function(c){
+      if(!c.txs.length) return;
+      if(!byName[c.displayName]) byName[c.displayName]={banks:{},periods:{}};
+      byName[c.displayName].banks[b.name]=true;
+      c.txs.forEach(function(t){if(t.period){byName[c.displayName].periods[t.period]=(byName[c.displayName].periods[t.period]||0)+t.amount;}});
+    });});});
+    Object.keys(byName).sort().forEach(function(name,i){
+      var info=byName[name];
+      var byP={};periods.forEach(function(p){byP[p]=info.periods[p]||0;});
+      entities.push({id:'name:'+name,label:name,sublabel:Object.keys(info.banks).join(', '),color:color(i)});
+      values['name:'+name]=byP;
+    });
+  }
+  return {entities:entities,values:values};
+}
+
+// Render a line chart SVG. Returns HTML string.
+function renderLineChart(entities,values,periods,checkedSet){
+  var visible=entities.filter(function(e){return checkedSet[e.id];});
+  if(!visible.length||!periods.length){
+    return '<div style="padding:40px;text-align:center;font-size:13px;color:var(--dim);">Select at least one item to chart.</div>';
+  }
+  var W=900,H=420,padL=70,padR=20,padT=20,padB=50;
+  var innerW=W-padL-padR,innerH=H-padT-padB;
+  // Find max value across visible entities
+  var maxVal=0;
+  visible.forEach(function(e){periods.forEach(function(p){var v=values[e.id][p]||0;if(v>maxVal)maxVal=v;});});
+  if(maxVal===0) maxVal=100;
+  // Round up to a nice ceiling
+  var mag=Math.pow(10,Math.floor(Math.log10(maxVal)));
+  var ceil=Math.ceil(maxVal/mag)*mag;
+  if(ceil/maxVal<1.1) ceil+=mag;
+  var xStep=periods.length>1?innerW/(periods.length-1):0;
+  // Gridlines + Y labels
+  var gridY='';
+  var ticks=5;
+  for(var i=0;i<=ticks;i++){
+    var y=padT+innerH-(i/ticks)*innerH;
+    var val=(i/ticks)*ceil;
+    gridY+='<line x1="'+padL+'" x2="'+(W-padR)+'" y1="'+y+'" y2="'+y+'" stroke="var(--border)" stroke-width="1" opacity="0.5"/>';
+    gridY+='<text x="'+(padL-8)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" font-family="JetBrains Mono,monospace" fill="var(--dim)">$'+(val>=1000?(val/1000).toFixed(val>=10000?0:1)+'k':val.toFixed(0))+'</text>';
+  }
+  // X labels
+  var xLabels='';
+  periods.forEach(function(p,i){
+    var x=padL+i*xStep;
+    xLabels+='<text x="'+x+'" y="'+(H-padB+18)+'" text-anchor="middle" font-size="11" font-family="JetBrains Mono,monospace" fill="var(--muted)">'+periodLabel(p)+'</text>';
+  });
+  // Lines + points
+  var lines='';
+  visible.forEach(function(e){
+    var pts=periods.map(function(p,i){
+      var v=values[e.id][p]||0;
+      var x=padL+i*xStep;
+      var y=padT+innerH-(v/ceil)*innerH;
+      return{x:x,y:y,val:v,period:p};
+    });
+    var path=pts.map(function(pt,i){return(i===0?'M':'L')+pt.x+','+pt.y;}).join(' ');
+    lines+='<path d="'+path+'" stroke="'+e.color+'" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+    pts.forEach(function(pt){
+      lines+='<circle cx="'+pt.x+'" cy="'+pt.y+'" r="4" fill="'+e.color+'" stroke="var(--bg)" stroke-width="2"><title>'+esc(e.label)+' — '+periodLabel(pt.period)+': '+fmt(pt.val)+'</title></circle>';
+    });
+  });
+  // Legend
+  var legend=visible.map(function(e){return'<div style="display:flex;align-items:center;gap:6px;font-size:12px;"><div style="width:14px;height:3px;background:'+e.color+';border-radius:2px;"></div><span style="color:var(--text);">'+esc(e.label)+'</span></div>';}).join('');
+  return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:14px;">'
+    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;">'
+    +gridY+xLabels+lines
+    +'</svg>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;">'+legend+'</div>'
+    +'</div>';
+}
+
+// Build the checkbox controls
+function renderChartControls(entities,checkedSet){
+  var viewBtns=['company','bank','cardholder'].map(function(v){
+    var label=v==='company'?'Company':v==='bank'?'By Bank':'By Cardholder';
+    var active=chartViewBy===v;
+    return'<button class="pbtn" onclick="setChartView(\''+v+'\')" style="font-size:10px;padding:4px 8px;'+(active?'background:var(--accent);color:#fff;border-color:var(--accent);':'')+'">'+label+'</button>';
+  }).join('');
+  var checks=entities.map(function(e){
+    var id='chk_'+e.id.replace(/[^a-zA-Z0-9]/g,'_');
+    var checked=checkedSet[e.id]?' checked':'';
+    return'<label for="'+id+'" style="display:flex;align-items:center;gap:6px;font-size:10px;padding:4px 6px;border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;background:'+(checkedSet[e.id]?'var(--surface2)':'var(--bg)')+';">'
+      +'<input type="checkbox" id="'+id+'" '+checked+' onchange="toggleChartEntity(\''+e.id.replace(/'/g,"\\'")+'\')" style="cursor:pointer;accent-color:'+e.color+';flex-shrink:0;"/>'
+      +'<div style="width:7px;height:7px;border-radius:2px;background:'+e.color+';flex-shrink:0;"></div>'
+      +'<div style="min-width:0;flex:1;"><div style="font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;">'+esc(e.label)+'</div><div style="font-size:9px;color:var(--dim);font-family:JetBrains Mono,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(e.sublabel)+'</div></div>'
+    +'</label>';
+  }).join('');
+  return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px;display:flex;flex-direction:column;gap:8px;max-height:340px;overflow:auto;">'
+    +'<div><div style="font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;font-family:JetBrains Mono,monospace;margin-bottom:5px;">View by</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:4px;">'+viewBtns+'</div></div>'
+    +'<div style="display:flex;gap:5px;border-top:1px solid var(--border);padding-top:8px;">'
+      +'<button class="sbtn" style="font-size:10px;flex:1;padding:4px;" onclick="checkAllChart(true)">Select all</button>'
+      +'<button class="sbtn" style="font-size:10px;flex:1;padding:4px;" onclick="checkAllChart(false)">Clear</button>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:4px;">'+checks+'</div>'
+  +'</div>';
+}
+
+function setChartView(v){chartViewBy=v;chartChecked=null;refreshChart();}
+function toggleChartEntity(id){if(!chartChecked)chartChecked={};chartChecked[id]=!chartChecked[id];refreshChart();}
+function checkAllChart(on){
+  // Need to rebuild entity list to know what to flip; do it inline using the same trimmed periods.
+  var scopedCos=mtmCompanyFilter?companies.filter(function(c){return c.id===mtmCompanyFilter;}):companies;
+  var periodSet={};
+  scopedCos.forEach(function(co){co.banks.forEach(function(b){b.cards.forEach(function(c){c.txs.forEach(function(t){if(t.period)periodSet[t.period]=true;});});});});
+  var allPeriods=Object.keys(periodSet).filter(function(p){return p!=='Unknown';}).sort();
+  var periods=allPeriods.length>=3?allPeriods.slice(1,-1):[];
+  var built=buildChartData(scopedCos,periods,chartViewBy);
+  chartChecked={};
+  if(on) built.entities.forEach(function(e){chartChecked[e.id]=true;});
+  refreshChart();
+}
+
+// Build chart section HTML for the given scoped cos + trimmed periods.
+function buildChartSection(scopedCos,periods){
+  var chartData=buildChartData(scopedCos,periods,chartViewBy);
+  if(chartChecked===null){
+    chartChecked={};
+    if(chartViewBy==='company') chartData.entities.forEach(function(e){chartChecked[e.id]=true;});
+  } else {
+    var validIds={};chartData.entities.forEach(function(e){validIds[e.id]=true;});
+    Object.keys(chartChecked).forEach(function(k){if(!validIds[k])delete chartChecked[k];});
+  }
+  var chartBody='<div style="display:grid;grid-template-columns:1fr 220px;gap:12px;align-items:start;">'
+      +'<div>'+renderLineChart(chartData.entities,chartData.values,periods,chartChecked)+'</div>'
+      +'<div>'+renderChartControls(chartData.entities,chartChecked)+'</div>'
+    +'</div>';
+  return '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">'
+    +'<div style="font-size:13px;font-weight:700;color:var(--text);letter-spacing:-.01em;">Spending Trends</div>'
+    +'<div style="font-size:10px;color:var(--dim);font-family:JetBrains Mono,monospace;">First &amp; last months excluded (partial data)</div>'
+  +'</div>'+chartBody;
+}
+
+// Update only the chart container — keeps scroll position stable on checkbox toggle.
+function refreshChart(){
+  var el=document.getElementById('mtmChart');
+  if(!el){renderMTM();return;}
+  var scopedCos=mtmCompanyFilter?companies.filter(function(c){return c.id===mtmCompanyFilter;}):companies;
+  var periodSet={};
+  scopedCos.forEach(function(co){co.banks.forEach(function(b){b.cards.forEach(function(c){c.txs.forEach(function(t){if(t.period)periodSet[t.period]=true;});});});});
+  var allPeriods=Object.keys(periodSet).filter(function(p){return p!=='Unknown';}).sort();
+  var periods=allPeriods.length>=3?allPeriods.slice(1,-1):[];
+  el.innerHTML=buildChartSection(scopedCos,periods);
+}
+
+// ─── Month to Month ────────────────────────────────────────────────────────
+function buildMTMHeader(){
+  var opts='<option value=""'+(mtmCompanyFilter===''?' selected':'')+'>All Companies</option>'
+    +companies.map(function(c){return'<option value="'+esc(c.id)+'"'+(c.id===mtmCompanyFilter?' selected':'')+'>'+esc(c.name)+'</option>';}).join('');
+  return '<div class="ptop">'
+    +'<div class="ptitle">Month to <span>Month</span></div>'
+    +'<div class="btns">'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
+        +'<span style="font-size:12px;color:var(--muted);font-family:JetBrains Mono,monospace;">Company:</span>'
+        +'<select onchange="mtmCompanyFilter=this.value;chartChecked=null;renderMTM();" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;color:var(--text);font-family:Plus Jakarta Sans,sans-serif;font-size:12px;outline:none;cursor:pointer;">'
+        +opts
+        +'</select>'
+      +'</div>'
+    +'</div>'
+  +'</div>';
+}
+
+function renderMTM(){
+  var el=document.getElementById('mtmContent');
+  // Reset filter if the selected company was deleted
+  if(mtmCompanyFilter && !companies.find(function(c){return c.id===mtmCompanyFilter;})) mtmCompanyFilter='';
+  var scopedCos=mtmCompanyFilter?companies.filter(function(c){return c.id===mtmCompanyFilter;}):companies;
+  var periodSet={};
+  var cardMap={};
+  scopedCos.forEach(function(co){
+    co.banks.forEach(function(bank){
+      bank.cards.forEach(function(card){
+        if(!card.txs.length)return;
+        var byPeriod={};
+        card.txs.forEach(function(tx){var p=tx.period||detectPeriod([tx])||'Unknown';if(!byPeriod[p])byPeriod[p]=0;byPeriod[p]+=tx.amount;periodSet[p]=true;});
+        var key=card.id;
+        if(!cardMap[key]) cardMap[key]={name:card.displayName,bank:bank.name,bankType:bank.bankType,co:co.name,coId:co.id,periods:{}};
+        Object.keys(byPeriod).forEach(function(p){cardMap[key].periods[p]=(cardMap[key].periods[p]||0)+byPeriod[p];});
+      });
+    });
+  });
+
+  var allPeriods=Object.keys(periodSet).filter(function(p){return p!=='Unknown';}).sort();
+  // Always exclude first and last months from all MTM displays (partial-month data)
+  var periods=allPeriods.length>=3?allPeriods.slice(1,-1):[];
+  var cardKeys=Object.keys(cardMap);
+  if(!periods.length||!cardKeys.length){
+    var hasPartialOnly=allPeriods.length>0 && allPeriods.length<3;
+    var emptyMsg=mtmCompanyFilter
+      ?'No data for the selected company.'
+      :(hasPartialOnly?'Need at least 3 months of data.':'No data yet');
+    var emptyHint=hasPartialOnly
+      ?'First and last months are excluded because they typically have partial coverage.'
+      :'Upload statements from multiple months to see trends.';
+    el.innerHTML=buildMTMHeader()+'<div class="ph"><div class="ph-ic">&#128200;</div><div class="ph-t">'+emptyMsg+'</div><div class="ph-s">'+emptyHint+'</div></div>';
+    return;
+  }
+
+  var grandTotals={};periods.forEach(function(p){grandTotals[p]=0;});
+  var thead='<thead><tr><th class="lft">Cardholder</th><th class="lft">Bank</th>'+periods.map(function(p){return'<th class="period-header">'+periodLabel(p)+'</th>';}).join('')+'<th>Total</th><th>Trend</th></tr></thead>';
+  var tbodyRows='';
+
+  scopedCos.forEach(function(co){
+    var coKeys=cardKeys.filter(function(k){return cardMap[k].coId===co.id;});
+    if(!coKeys.length)return;
+    tbodyRows+=coSectionRow(co,periods.length+4);
+    co.banks.forEach(function(bank){
+      var bankKeys=coKeys.filter(function(k){return cardMap[k].bank===bank.name;});
+      if(!bankKeys.length)return;
+      bankKeys.forEach(function(key,ci){
+        var cd=cardMap[key];var rowTotal=0;
+        var cells=periods.map(function(p){var v=cd.periods[p]||0;rowTotal+=v;grandTotals[p]=(grandTotals[p]||0)+v;return cell(v>0?fmt(v):'—',{dim:v===0});}).join('');
+        var trend='';
+        if(periods.length>=2){var last=cd.periods[periods[periods.length-1]]||0;var prev=cd.periods[periods[periods.length-2]]||0;if(prev>0&&last>0){var pct=((last-prev)/prev*100);var cls=pct>5?'trend-up':pct<-5?'trend-dn':'';trend='<span class="'+cls+'">'+(pct>0?'↑':'↓')+Math.abs(pct).toFixed(0)+'%</span>';}}
+        var bcol=bankColor(cd.bankType);
+        tbodyRows+='<tr><td><div class="ci lft" style="gap:8px;"><div class="av" style="'+avStyle(ci)+'">'+initials(cd.name)+'</div><span style="font-size:13px;font-weight:600;">'+esc(cd.name)+'</span></div></td><td><div class="ci lft"><span style="font-size:11px;font-weight:700;color:'+bcol+';">'+esc(cd.bank)+'</span></div></td>'+cells+cell(fmt(rowTotal),{bold:true})+cell(trend)+'</tr>';
+      });
+    });
+  });
+
+  var grandTotal=Object.values(grandTotals).reduce(function(s,v){return s+v;},0);
+  tbodyRows+='<tr class="foot">'+totalsLabelCell()+'<td></td>'+periods.map(function(p){return cell(fmt(grandTotals[p]||0),{bold:true});}).join('')+cell(fmt(grandTotal),{bold:true})+'<td></td></tr>';
+
+  // Chart uses the same trimmed periods list as the rest of the MTM tab.
+  // Chart section is rendered into its own #mtmChart container so toggling
+  // checkboxes only re-renders the chart (preserves scroll position).
+  var chartHtml='<div id="mtmChart" style="margin-bottom:24px;">'+buildChartSection(scopedCos,periods)+'</div>';
+
+  var kpiHtml='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;">'
+    +periods.map(function(p,i){var v=grandTotals[p]||0;var prev=i>0?grandTotals[periods[i-1]]||0:0;var diff=i>0&&prev>0?((v-prev)/prev*100):null;var diffHtml=diff!==null?'<div style="font-size:11px;margin-top:2px;color:'+(diff>0?'var(--red)':'var(--green)')+';">'+(diff>0?'↑':'↓')+Math.abs(diff).toFixed(1)+'% vs prior</div>':'';return'<div class="exec-card"><div class="exec-card-title">'+periodLabel(p)+'</div><div class="exec-val">'+fmt(v)+'</div>'+diffHtml+'</div>';}).join('')
+  +'</div>';
+
+  el.innerHTML=
+    buildMTMHeader()
+    +chartHtml
+    +kpiHtml
+    +'<div class="panel"><div class="panel-scroll"><table style="min-width:'+(350+periods.length*130)+'px;">'+thead+'<tbody>'+tbodyRows+'</tbody></table></div></div>';
+}
+
+
+// ─── Box Import ────────────────────────────────────────────────────────────────
+// Period helpers
+
+
+// ── Helper: build period selector dropdown ──────────────────────────────────
+function buildPeriodSelector(periods, activePeriod, onchange){
+  if(!periods.length) return '';
+  var st='background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;color:var(--text);font-family:Plus Jakarta Sans,sans-serif;font-size:12px;font-weight:600;outline:none;cursor:pointer;';
+  var sel='<select onchange="'+onchange+'" style="'+st+'">'
+    +'<option value=""'+(activePeriod===''?' selected':'')+'>All Months</option>'
+    +periods.map(function(p){return'<option value="'+p+'"'+(p===activePeriod?' selected':'')+'>'+periodLabel(p)+'</option>';}).join('')
+    +'<option value="custom"'+(activePeriod==='custom'?' selected':'')+'>Custom range...</option>'
+    +'</select>';
+  var html='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+    +'<span style="font-size:11px;color:var(--muted);font-family:JetBrains Mono,monospace;">Period:</span>'
+    +sel;
+  if(activePeriod==='custom'){
+    var inputSt='background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:5px 8px;color:var(--text);font-family:JetBrains Mono,monospace;font-size:11px;outline:none;';
+    html+='<input type="month" value="'+esc(customStart||'')+'" onchange="customStart=this.value;renderContent();" style="'+inputSt+'" title="Start month"/>'
+      +'<span style="font-size:11px;color:var(--dim);">to</span>'
+      +'<input type="month" value="'+esc(customEnd||'')+'" onchange="customEnd=this.value;renderContent();" style="'+inputSt+'" title="End month"/>';
+  }
+  return html+'</div>';
+}
+
+// ── Get all periods available for a set of txs ─────────────────────────────
+function getPeriodsFromTxs(txs){
+  var ps={};
+  txs.forEach(function(t){if(t.period)ps[t.period]=true;});
+  // Only show periods that are in our known statements (not stray Dec/May dates)
+  return Object.keys(ps).sort();
+}
+
+
+
+// ─── Modal ─────────────────────────────────────────────────────────────────
+function showModal(title,body){var m=document.getElementById('modaldiv');m.style.display='block';m.innerHTML='<div class="mbg" onclick="closeModal(event)"><div class="modal"><div class="modal-hd"><div class="modal-t">'+title+'</div><button class="modal-x" onclick="closeModal()">×</button></div><div class="modal-bd">'+body+'</div></div></div>';}
+function closeModal(e){if(e&&e.target!==e.currentTarget)return;var m=document.getElementById('modaldiv');m.style.display='none';m.innerHTML='';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+
+// ─── Render ─────────────────────────────────────────────────────────────────
+function render(){renderSidebar();renderContent();}
+
+// ─── Box integration (OAuth via Supabase Edge Functions) ─────────────────
+// Each Supabase user connects their own Box account once. Tokens live
+// server-side in box_tokens (RLS-scoped). No per-user setup beyond a single
+// "Connect Box" click + picking a folder.
+
+var FUNCS_BASE=SUPABASE_URL+'/functions/v1';
+var boxState={checked:false,connected:false,login:null,folderId:null,accessToken:null,expiresAt:0};
+
+// Folder-level cache: list of PDFs, lazily parsed into {fileId, fileName, names}.
+// On import we pick the ONE PDF whose card numbers best overlap with the CSV's
+// card numbers — so a Chase PDF only names Chase cards, CO PDF only names CO.
+var boxFolder={pdfIds:[],pdfNames:[],pdfMaps:null};
+
+// Parse every PDF in the folder once; cache per-PDF (not merged).
+async function ensureBoxPDFMaps(prog){
+  if(boxFolder.pdfMaps!==null) return boxFolder.pdfMaps;
+  if(!boxFolder.pdfIds.length){boxFolder.pdfMaps=[];return boxFolder.pdfMaps;}
+  var maps=[];
+  for(var i=0;i<boxFolder.pdfIds.length;i++){
+    if(prog) prog('Reading PDF '+(i+1)+'/'+boxFolder.pdfIds.length+'...');
+    try{
+      var buf=await fetchBoxFile(boxFolder.pdfIds[i],true);
+      var text=await extractTextFromPDF(buf);
+      var names=parsePDFNames(text);
+      maps.push({fileId:boxFolder.pdfIds[i],fileName:boxFolder.pdfNames[i],names:names});
+    }catch(e){console.warn('PDF',boxFolder.pdfNames[i]||boxFolder.pdfIds[i],'failed:',e);}
+  }
+  boxFolder.pdfMaps=maps;
+  return maps;
+}
+
+// Pick the PDF whose card-number keys best overlap with this CSV's card numbers.
+// Returns {names, source} or {names:{}, source:null} when nothing matches.
+function pickBestPDFForCSV(csvText,pdfMaps){
+  if(!pdfMaps||!pdfMaps.length) return {names:{},source:null};
+  // Extract card numbers from CSV via Papa.parse (same source of truth as import).
+  var rows=parseCSV(csvText);
+  var csvNos={};
+  rows.forEach(function(r){if(r.cardNo){csvNos[r.cardNo]=true;csvNos[normCardNo(r.cardNo)]=true;}});
+  var best=null,bestCount=0;
+  pdfMaps.forEach(function(pdf){
+    var c=0;
+    Object.keys(pdf.names).forEach(function(k){if(csvNos[k]||csvNos[normCardNo(k)]) c++;});
+    if(c>bestCount){bestCount=c;best=pdf;}
+  });
+  return best?{names:best.names,source:best.fileName}:{names:{},source:null};
+}
+
+function parseBoxFolderId(input){
+  var s=(input||'').toString().trim();
+  var m=s.match(/folder\/(\d+)/);
+  return m?m[1]:s;
+}
+
+// Fetch a fresh Box access token (server refreshes if needed) and cache it.
+async function refreshBoxStatus(){
+  if(!currentUser){boxState.checked=true;boxState.connected=false;return boxState;}
+  try{
+    var {data:{session}}=await sb.auth.getSession();
+    if(!session){boxState.checked=true;boxState.connected=false;return boxState;}
+    var res=await fetch(FUNCS_BASE+'/box-token',{headers:{Authorization:'Bearer '+session.access_token}});
+    var data=await res.json();
+    boxState.checked=true;
+    boxState.connected=!!data.connected;
+    boxState.login=data.box_user_login||null;
+    boxState.folderId=data.folder_id||null;
+    boxState.accessToken=data.access_token||null;
+    boxState.expiresAt=data.expires_at?Date.parse(data.expires_at):0;
+  }catch(e){console.warn('box-token check failed',e);boxState.checked=true;boxState.connected=false;}
+  return boxState;
+}
+
+// Click handler: kicks off OAuth — gets the Box authorize URL from the
+// box-oauth function and redirects the browser there.
+async function connectBox(){
+  var {data:{session}}=await sb.auth.getSession();
+  if(!session){alert('Sign in first.');return;}
+  try{
+    var res=await fetch(FUNCS_BASE+'/box-oauth/start',{headers:{Authorization:'Bearer '+session.access_token}});
+    if(!res.ok){
+      var body='';try{body=await res.text();}catch(e){}
+      if(res.status===401){
+        // Stale or missing session on Supabase's side. Wipe local creds and prompt re-sign-in.
+        await sb.auth.signOut();
+        alert('Your session has expired. Please sign in again.');
+        location.reload();
+        return;
+      }
+      throw new Error('start failed ('+res.status+'): '+body);
+    }
+    var {url}=await res.json();
+    window.location.href=url;
+  }catch(e){alert('Could not start Box connect: '+e.message);}
+}
+
+async function disconnectBox(){
+  if(!confirm('Disconnect Box? You can reconnect anytime.')) return;
+  try{
+    await sb.from('box_tokens').delete().eq('user_id',currentUser.id);
+  }catch(e){console.warn(e);}
+  boxState={checked:true,connected:false,login:null,folderId:null,accessToken:null,expiresAt:0};
+  closeModal();
+}
+
+// Persist the folder choice to box_tokens (RLS allows this update).
+async function saveBoxFolder(folderId){
+  boxState.folderId=folderId;
+  try{await sb.from('box_tokens').update({folder_id:folderId}).eq('user_id',currentUser.id);}
+  catch(e){console.warn('folder save failed',e);}
+}
+
+function showBoxImportModal(){
+  if(!curCo){alert('Pick a company in the sidebar first.');return;}
+  var co=getCo(curCo);
+  var title='Import from Box &mdash; '+esc(co.name);
+
+  if(!boxState.checked){
+    showModal(title,'<div class="spin-wrap" style="padding:40px;"><div class="spinner"></div></div>');
+    refreshBoxStatus().then(function(){showBoxImportModal();});
+    return;
+  }
+
+  if(!boxState.connected){
+    showModal(title,
+      '<div style="padding:24px 22px;display:flex;flex-direction:column;gap:14px;text-align:center;">'
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.6;">Connect your Box account once &mdash; we\'ll pull statements directly from any folder you pick.</div>'
+      +'<button class="pbtn" onclick="connectBox()" style="align-self:center;padding:10px 22px;display:flex;align-items:center;gap:8px;"><span style="background:#0061d5;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;">Box</span> Connect Box</button>'
+    +'</div>');
+    return;
+  }
+
+  var folder=boxState.folderId||'';
+  showModal(title,
+    '<div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-radius:var(--rs);font-size:12px;">'
+      +'<div><span style="color:var(--dim);">Connected as</span> <b>'+esc(boxState.login||'Box user')+'</b></div>'
+      +'<a onclick="disconnectBox()" style="color:var(--accent);cursor:pointer;font-size:11px;">Disconnect</a>'
+    +'</div>'
+    +'<div>'
+      +'<div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;">Box folder ID or URL</div>'
+      +'<div style="display:flex;gap:8px;">'
+        +'<input class="ifield" id="boxFolder" value="'+esc(folder)+'" placeholder="e.g. 381748475277 or https://app.box.com/folder/&hellip;" style="flex:1;">'
+        +'<button class="pbtn" onclick="loadBoxFiles()">Load files</button>'
+      +'</div>'
+    +'</div>'
+    +'<div id="boxFileList" style="min-height:40px;"></div>'
+    +'<div id="boxImportProgress" style="display:none;padding:10px 14px;font-size:13px;border-radius:var(--rs);background:var(--surface2);"></div>'
+    +'</div>');
+  if(folder) setTimeout(loadBoxFiles,80);
+}
+
+// Token getter that auto-refreshes via /box-token if within 60s of expiry.
+async function getBoxAccessToken(){
+  if(boxState.accessToken && Date.now() < boxState.expiresAt - 60000) return boxState.accessToken;
+  await refreshBoxStatus();
+  if(!boxState.connected || !boxState.accessToken) throw new Error('Box not connected.');
+  return boxState.accessToken;
+}
+
+async function loadBoxFiles(){
+  var folderInput=document.getElementById('boxFolder');
+  if(!folderInput) return;
+  var folderId=parseBoxFolderId(folderInput.value);
+  if(!/^\d+$/.test(folderId)){alert('Folder ID should be a number, or a Box folder URL.');return;}
+  folderInput.value=folderId;
+  saveBoxFolder(folderId);
+
+  var listEl=document.getElementById('boxFileList');
+  listEl.innerHTML='<div class="spin-wrap" style="min-height:60px;"><div class="spinner"></div></div>';
+  try{
+    var token=await getBoxAccessToken();
+    var res=await fetch('https://api.box.com/2.0/folders/'+folderId+'/items?fields=id,name,type,extension,size,modified_at&limit=200',
+      {headers:{Authorization:'Bearer '+token}});
+    if(!res.ok){
+      var body=await res.text();
+      var hint=res.status===401?' &mdash; reconnect Box (token rejected).':
+               res.status===403?' &mdash; this Box account doesn\'t have access to that folder.':
+               res.status===404?' &mdash; folder not found.':'';
+      listEl.innerHTML='<div style="color:var(--red);padding:10px 0;font-size:13px;">Box error '+res.status+hint+'<div style="font-size:11px;color:var(--dim);margin-top:6px;">'+esc(body.substring(0,200))+'</div></div>';
+      return;
+    }
+    var data=await res.json();
+    var entries=(data.entries||[]).filter(function(e){return e.type==='file';});
+    var pdfs=entries.filter(function(e){return (e.extension||'').toLowerCase()==='pdf';});
+    var csvs=entries.filter(function(e){return (e.extension||'').toLowerCase()==='csv';}).map(function(c){
+      return {id:c.id,name:c.name,size:c.size,modified_at:c.modified_at};
+    });
+
+    // Reset folder-level PDF cache for this load.
+    boxFolder.pdfIds=pdfs.map(function(p){return p.id;});
+    boxFolder.pdfNames=pdfs.map(function(p){return p.name;});
+    boxFolder.pdfMaps=null;
+    boxFolder.csvFiles=csvs;
+
+    if(!csvs.length){
+      listEl.innerHTML='<div style="padding:10px 0;font-size:13px;color:var(--dim);">No CSV files in this folder.</div>';
+      return;
+    }
+    var rows=csvs.map(function(f,i){
+      var kb=f.size?Math.round(f.size/1024)+' KB':'';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">'
+        +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(f.name)+'</div>'
+        +'<div style="font-size:10px;color:var(--dim);font-family:JetBrains Mono,monospace;margin-top:2px;">'+esc(kb)+(f.modified_at?' &middot; '+f.modified_at.substring(0,10):'')+'</div></div>'
+        +'<button class="pbtn" style="font-size:11px;padding:5px 12px;" id="boxbtn'+i+'" onclick="importBoxCSV('+sq(f.id)+','+sq(f.name)+','+i+')">Import</button>'
+      +'</div>';
+    }).join('');
+    listEl.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;font-family:JetBrains Mono,monospace;">'+csvs.length+' CSV'+(csvs.length!==1?'s':'')+(pdfs.length?' &middot; '+pdfs.length+' PDF'+(pdfs.length!==1?'s':'')+' for names':'')+'</div>'
+      +'<button class="pbtn" onclick="importAllBoxCSVs()">Import all</button>'
+    +'</div>'+rows;
+  }catch(e){
+    listEl.innerHTML='<div style="color:var(--red);padding:10px 0;font-size:13px;">'+esc(e.message)+'</div>';
+  }
+}
+
+async function fetchBoxFile(fileId,binary){
+  var token=await getBoxAccessToken();
+  var res=await fetch('https://api.box.com/2.0/files/'+fileId+'/content',{headers:{Authorization:'Bearer '+token}});
+  if(res.status===401){
+    // Stale cached token — force refresh once and retry.
+    boxState.accessToken=null;
+    token=await getBoxAccessToken();
+    res=await fetch('https://api.box.com/2.0/files/'+fileId+'/content',{headers:{Authorization:'Bearer '+token}});
+  }
+  if(!res.ok) throw new Error('Box download failed ('+res.status+')');
+  return binary ? await res.arrayBuffer() : await res.text();
+}
+
+async function importBoxCSV(fileId,fileName,idx){
+  var btn=document.getElementById('boxbtn'+idx);
+  var prog=document.getElementById('boxImportProgress');
+  if(btn){btn.disabled=true;btn.textContent='Importing...';}
+  if(prog){prog.style.display='block';prog.style.color='var(--muted)';prog.textContent='Downloading '+fileName+'...';}
+  try{
+    var csvText=await fetchBoxFile(fileId,false);
+    var pdfMaps=await ensureBoxPDFMaps(function(m){if(prog)prog.textContent=fileName+' &mdash; '+m;});
+    var pick=pickBestPDFForCSV(csvText,pdfMaps);
+    var result=await runImportCore(csvText,{
+      fileName:fileName,
+      cardNames:pick.names,
+      onProgress:function(msg){if(prog)prog.textContent=fileName+' &mdash; '+msg;}
+    });
+    render();
+    var src=pick.source?' (names from '+pick.source+')':'';
+    if(prog){prog.style.color='var(--green)';prog.textContent='&#10003; '+fileName+' &mdash; '+result.totalSaved+' transactions'+src;}
+    if(btn){btn.disabled=false;btn.textContent='Re-import';}
+  }catch(e){
+    console.error(e);
+    if(prog){prog.style.color='var(--red)';prog.textContent='Error: '+e.message;}
+    if(btn){btn.disabled=false;btn.textContent='Retry';}
+  }
+}
+
+async function importAllBoxCSVs(){
+  var files=boxFolder.csvFiles||[];
+  if(!files.length){alert('No files loaded — click Load files first.');return;}
+  var prog=document.getElementById('boxImportProgress');
+  if(prog){prog.style.display='block';prog.style.color='var(--muted)';}
+  files.forEach(function(_,i){var b=document.getElementById('boxbtn'+i);if(b)b.disabled=true;});
+
+  // Parse all PDFs once before any CSV (kept separately, not merged).
+  var pdfMaps=await ensureBoxPDFMaps(function(m){if(prog)prog.textContent=m;});
+
+  var total=0,errors=0,withNames=0;
+  for(var i=0;i<files.length;i++){
+    var f=files[i];
+    if(prog) prog.textContent='('+(i+1)+'/'+files.length+') '+f.name+'...';
+    try{
+      var csvText=await fetchBoxFile(f.id,false);
+      var pick=pickBestPDFForCSV(csvText,pdfMaps);
+      if(pick.source) withNames++;
+      var r=await runImportCore(csvText,{
+        fileName:f.name,
+        cardNames:pick.names,
+        onProgress:function(msg){if(prog)prog.textContent='('+(i+1)+'/'+files.length+') '+f.name+' &mdash; '+msg;}
+      });
+      total+=r.totalSaved;
+      var btn=document.getElementById('boxbtn'+i);if(btn)btn.textContent='&#10003;';
+    }catch(e){console.error('Error',f.name,e);errors++;}
+  }
+  render();
+  if(prog){
+    prog.style.color=errors?'var(--red)':'var(--green)';
+    var note=withNames?' ('+withNames+'/'+files.length+' got PDF names)':'';
+    prog.textContent='&#10003; Done &mdash; '+total+' transactions'+note+(errors?' ('+errors+' errors)':'');
+  }
+}
+</script>
+</body>
+</html>
