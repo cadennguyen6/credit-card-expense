@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ledger — invoice price tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F6F2; --card:#FFFFFF; --ink:#1A1A17; --muted:#6E6A62;
+    --faint:#9A958C; --line:#E6E3DC; --line-strong:#D8D4CB;
+    --brand:#0F5C5C; --brand-ink:#0A4444; --brand-soft:#E4EFEE;
+    --up:#B23B2E; --up-soft:#F8E7E4; --down:#2C7A50; --down-soft:#E3F0E8;
+    --hover:#efeee9; --rowhover:#faf9f5; --topbg:rgba(247,246,242,.86);
+    --shadow:0 1px 2px rgba(26,26,23,.04),0 6px 18px rgba(26,26,23,.05);
+  }
+  html[data-theme="dark"]{
+    --paper:#14171A; --card:#1D2024; --ink:#ECEAE4; --muted:#A6A199;
+    --faint:#7B766D; --line:#2B2E33; --line-strong:#3A3E44;
+    --brand:#2FA39A; --brand-ink:#9FE3DC; --brand-soft:#163230;
+    --up:#E0705F; --up-soft:#36211E; --down:#5FB985; --down-soft:#162C22;
+    --hover:#24272C; --rowhover:#212429; --topbg:rgba(20,23,26,.86);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .num{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+  .right{text-align:right}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px 80px;}
+  .top{position:sticky;top:0;z-index:20;background:var(--topbg);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);}
+  .top-in{max-width:1040px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:-.02em;}
+  .mark{width:30px;height:30px;border-radius:8px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;}
+  .wm{display:inline-flex;align-items:center;gap:8px;font-size:15px;line-height:1;}
+  .wm b{font-weight:680;letter-spacing:.04em;color:var(--ink);}
+  .wm .wm-div{color:var(--faint);font-weight:300;}
+  .wm .wm-soft{color:var(--muted);font-weight:500;letter-spacing:.01em;}
+  .nav{display:flex;gap:4px;margin-left:auto;align-items:center;flex-wrap:wrap;}
+  .tab{display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--muted);font-weight:550;cursor:pointer;font-size:13px;}
+  .tab:hover{background:var(--hover);color:var(--ink);}
+  .tab.on{background:var(--brand-soft);color:var(--brand-ink);}
+  .scope-select{padding:7px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:13px;font-weight:550;cursor:pointer;max-width:180px;}
+  .scope-select:focus{outline:2px solid var(--brand-soft);border-color:var(--brand);}
+  h1.h1{font-size:24px;font-weight:680;letter-spacing:-.025em;margin:28px 0 4px;}
+  .sub{color:var(--muted);margin:0 0 22px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:9px;font-weight:600;font-size:13px;cursor:pointer;border:1px solid var(--line-strong);background:var(--card);color:var(--ink);font-family:inherit;}
+  .btn:hover{background:var(--rowhover);}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;}
+  .btn.primary:hover{filter:brightness(1.08);}
+  .btn.ghost{border-color:transparent;background:transparent;color:var(--muted);}
+  .btn.ghost:hover{background:var(--hover);color:var(--ink);}
+  .btn.danger{color:var(--up);border-color:transparent;background:transparent;}
+  .btn.danger:hover{background:var(--up-soft);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;font-weight:650;font-size:12px;}
+  .pill.up{background:var(--up-soft);color:var(--up);}
+  .pill.down{background:var(--down-soft);color:var(--down);}
+  .pill.flat{background:var(--hover);color:var(--muted);}
+  .row{display:grid;grid-template-columns:1fr 120px 96px 110px;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line);cursor:pointer;}
+  .row:last-child{border-bottom:none;}
+  .row:hover{background:var(--rowhover);}
+  .row.head{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);cursor:default;font-weight:600;}
+  .row.head:hover{background:transparent;}
+  .iname{font-weight:600;letter-spacing:-.01em;}
+  .imeta{color:var(--faint);font-size:12px;margin-top:2px;}
+  .price{text-align:right;font-weight:600;}
+  .flex-end{display:flex;justify-content:flex-end;}
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:18px;}
+  .stat{background:var(--card);padding:18px 20px;}
+  .stat .k{font-size:12px;color:var(--muted);font-weight:550;}
+  .stat .v{font-size:26px;font-weight:680;letter-spacing:-.02em;margin-top:6px;}
+  table.led{width:100%;border-collapse:collapse;}
+  .led th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:600;padding:12px 18px;border-bottom:1px solid var(--line);}
+  .led td{padding:13px 18px;border-bottom:1px solid var(--line);}
+  .led tr:last-child td{border-bottom:none;}
+  .led td.r,.led th.r{text-align:right;}
+  .flabel{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:550;}
+  .drop{border:1.5px dashed var(--line-strong);border-radius:14px;padding:44px 24px;text-align:center;cursor:pointer;background:var(--card);}
+  .drop.hot{border-color:var(--brand);background:var(--brand-soft);}
+  .in{width:100%;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;font:inherit;background:var(--card);color:var(--ink);}
+  .in.num{font-family:ui-monospace,Menlo,monospace;}
+  .in.r{text-align:right;}
+  .in:focus{outline:2px solid var(--brand-soft);border-color:var(--brand);}
+  .empty{text-align:center;padding:64px 24px;color:var(--muted);}
+  .empty .ic{width:52px;height:52px;border-radius:14px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;margin:0 auto 16px;font-size:22px;}
+  .banner{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;font-size:13px;margin-bottom:16px;}
+  .banner.warn{background:var(--up-soft);color:var(--up);}
+  .center{min-height:100vh;display:grid;place-items:center;}
+  .spin{width:24px;height:24px;border:3px solid var(--brand-soft);border-top-color:var(--brand);border-radius:50%;animation:sp 1s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .ctrls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px;}
+  .vline{width:1px;height:24px;background:var(--line);margin:0 4px;}
+  @media (max-width:680px){
+    .row{grid-template-columns:1fr 84px 84px;}
+    .row .spark{display:none;}
+    .stat-grid{grid-template-columns:1fr;}
+    .tab span{display:none;}
+  }
+</style>
+</head>
+<body>
+<div id="root"><div class="center"><div class="spin"></div></div></div>
+<script>
+/* ===== CONFIG — both are safe to be public (RLS protects the data) ===== */
+const SUPABASE_URL = "https://atstrqdijzijyofbmxvk.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0c3RycWRpanppanlvZmJteHZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTUzNDIsImV4cCI6MjA5Njc3MTM0Mn0.tg_FgWU5Zk0yZfK78U5bZE5ruqvmka0wqJPb2DFRObU";
+const ANTHROPIC_MODEL = "claude-sonnet-4-6";
+/* ====================================================================== */
+
+const configured = !SUPABASE_URL.includes("YOUR-PROJECT") && !SUPABASE_ANON_KEY.includes("YOUR-SUPABASE");
+const sb = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth:{ persistSession:false, autoRefreshToken:true, detectSessionInUrl:true } }) : null;
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const root = document.getElementById("root");
+let theme = localStorage.getItem("ledger_theme") || ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light");
+function applyTheme(){ document.documentElement.setAttribute("data-theme", theme); }
+applyTheme();
+
+/* ---------- helpers ---------- */
+const usd = new Intl.NumberFormat("en-US", { style:"currency", currency:"USD" });
+const money = n => (n==null||isNaN(n)) ? "\u2014" : usd.format(n);
+const norm = s => String(s||"").trim().toLowerCase().replace(/\s+/g," ");
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const monthsAgo = n => { const d=new Date(); d.setMonth(d.getMonth()-n); return d.toISOString().slice(0,10); };
+const ytd = () => new Date().getFullYear()+"-01-01";
+function ym(d){ const x=new Date(d); return isNaN(x)?(d||""):x.toISOString().slice(0,7); }
+function monthLabel(d){ const x=new Date(d); return isNaN(x)?(d||"\u2014"):x.toLocaleDateString("en-US",{month:"short",year:"numeric"}); }
+function pct(c,p){ if(p==null||c==null||p===0) return null; return ((c-p)/p)*100; }
+function fmtPct(p){ if(p==null) return "\u2014"; return (p>0?"+":"")+p.toFixed(1)+"%"; }
+function unitPriceOf(li){
+  if(li.unitPrice!=null && !isNaN(li.unitPrice)) return Number(li.unitPrice);
+  const q=Number(li.quantity), t=Number(li.total);
+  if(!isNaN(q)&&q>0&&!isNaN(t)) return t/q;
+  if(!isNaN(t)) return t;
+  return null;
+}
+function buildItems(invoices){
+  const map=new Map();
+  for(const inv of invoices){
+    const per=new Map();
+    for(const li of inv.lineItems||[]){
+      const k=norm(li.name); if(!k) continue;
+      const up=unitPriceOf(li); if(up==null) continue;
+      const e=per.get(k)||{name:li.name,sum:0,n:0}; e.sum+=up; e.n++; e.name=li.name; per.set(k,e);
+    }
+    for(const [k,e] of per){
+      const a=map.get(k)||{key:k,name:e.name,points:[]};
+      a.name=e.name;
+      a.points.push({date:inv.invoiceDate,vendor:inv.vendor,unitPrice:e.sum/e.n});
+      map.set(k,a);
+    }
+  }
+  const items=[];
+  for(const it of map.values()){
+    it.points.sort((a,b)=>new Date(a.date)-new Date(b.date));
+    const p=it.points, last=p[p.length-1], prev=p.length>=2?p[p.length-2]:null, first=p[0];
+    items.push({...it, latest:last.unitPrice, latestDate:last.date,
+      lastChange:prev?pct(last.unitPrice,prev.unitPrice):null,
+      totalChange:p.length>=2?pct(last.unitPrice,first.unitPrice):null, count:p.length});
+  }
+  return items;
+}
+function aggregatePoints(points,gran){
+  const m=new Map();
+  for(const p of points){ const d=new Date(p.date);
+    const key=gran==="year"?String(isNaN(d)?p.date:d.getFullYear()):(isNaN(d)?p.date:d.toISOString().slice(0,7));
+    const e=m.get(key)||{key,sum:0,n:0,date:p.date}; e.sum+=p.unitPrice; e.n++; if(!isNaN(d)&&new Date(e.date)<d)e.date=p.date; m.set(key,e);
+  }
+  const arr=[...m.values()].map(e=>({key:e.key,label:gran==="year"?e.key:monthLabel(e.date),date:e.date,unitPrice:e.sum/e.n,count:e.n}));
+  arr.sort((a,b)=>a.key<b.key?-1:a.key>b.key?1:0); return arr;
+}
+const FIELD_HINTS={
+  vendor:["vendor","supplier","seller","company","merchant","from"],
+  invoiceDate:["date","invoice date","invoicedate","period","month"],
+  name:["item","description","product","line item","lineitem","name","sku","material"],
+  unit:["unit","uom","units","measure"],
+  quantity:["quantity","qty","count"],
+  unitPrice:["unit price","unitprice","unit_price","price","rate","cost","ppu"],
+  total:["total","amount","line total","linetotal","subtotal","extended"],
+};
+function matchHeaders(headers){
+  const low=headers.map(norm), out={};
+  for(const [field,hints] of Object.entries(FIELD_HINTS)){
+    let best=-1,score=0;
+    low.forEach((h,i)=>{ for(const hint of hints){ let s=0; if(h===hint)s=3; else if(h.includes(hint)||hint.includes(h))s=2; if(s>score){score=s;best=i;} }});
+    if(best>=0) out[field]=headers[best];
+  }
+  return out;
+}
+function parseCsv(text){
+  const res=Papa.parse(text,{header:true,skipEmptyLines:true});
+  const rows=res.data||[];
+  if(!rows.length) throw new Error("That file has no rows.");
+  const headers=Object.keys(rows[0]); const m=matchHeaders(headers);
+  if(!m.name||(!m.unitPrice&&!m.total)) throw new Error("Couldn't find the columns I need. Include an item/description column and a unit price (or amount) column.");
+  const num=v=>{ if(v==null) return null; const n=Number(String(v).replace(/[$,\s]/g,"")); return isNaN(n)?null:n; };
+  const groups=new Map();
+  for(const r of rows){
+    const vendor=m.vendor?r[m.vendor]:"Unspecified vendor";
+    const date=m.invoiceDate?r[m.invoiceDate]:"";
+    const gk=norm(vendor)+"|"+ym(date);
+    const g=groups.get(gk)||{vendor:vendor||"Unspecified vendor",invoiceDate:date,source:"csv",lineItems:[]};
+    const name=r[m.name]; if(!name) continue;
+    g.lineItems.push({ name:String(name).trim(), unit:m.unit?r[m.unit]:"", quantity:m.quantity?num(r[m.quantity]):null, unitPrice:m.unitPrice?num(r[m.unitPrice]):null, total:m.total?num(r[m.total]):null });
+    groups.set(gk,g);
+  }
+  return [...groups.values()].filter(g=>g.lineItems.length);
+}
+
+/* ---------- PDF parsing via pdf.js (free, in-browser, digital PDFs only) ---------- */
+async function pdfToLines(file){
+  if(!window.pdfjsLib) throw new Error("PDF reader didn't load. Refresh and try again.");
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const lines=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const tc=await page.getTextContent();
+    const rows={};
+    for(const it of tc.items){ const y=Math.round(it.transform[5]); (rows[y]=rows[y]||[]).push({x:it.transform[4],s:it.str}); }
+    Object.keys(rows).map(Number).sort((a,b)=>b-a).forEach(y=>{
+      const line=rows[y].sort((a,b)=>a.x-b.x).map(o=>o.s).join(" ").replace(/\s+/g," ").trim();
+      if(line) lines.push(line);
+    });
+  }
+  return lines;
+}
+function parseInvoiceText(lines){
+  const joined=lines.join("\n");
+  let vendor="Unspecified vendor";
+  const junk=/^(rptform|page:|invoice$|remit to|customer number|issue date|bill to|for service|for billing|return bottom|thank you|scan to pay|fast - easy|date description)/i;
+  for(const l of lines){ const t=l.trim(); if(t && !junk.test(t) && !/^\d/.test(t) && t.length>2){ vendor=t; break; } }
+  let invoiceDate=new Date().toISOString().slice(0,10);
+  const dm=joined.match(/issue date[:\s]*([0-1]?\d[\/\-.][0-3]?\d[\/\-.]\d{2,4})/i) || joined.match(/invoice date[:\s]*([0-1]?\d[\/\-.][0-3]?\d[\/\-.]\d{2,4})/i) || joined.match(/\bdate[:\s]*([0-1]?\d[\/\-.][0-3]?\d[\/\-.]\d{2,4})/i);
+  const anyDate=joined.match(/([0-1]?\d[\/\-.][0-3]?\d[\/\-.]\d{2,4})/);
+  if(dm){ const d=new Date(dm[1]); if(!isNaN(d)) invoiceDate=d.toISOString().slice(0,10); }
+  else if(anyDate){ const d=new Date(anyDate[1]); if(!isNaN(d)) invoiceDate=d.toISOString().slice(0,10); }
+  const items=[];
+  const twoAmt=/^(.+?)\s+(\d+(?:\.\d+)?)\s+\$?\s*([\d,]+\.\d{2})\s+\$?\s*([\d,]+\.\d{2})\s*$/;
+  const dateLed=/^([0-1]?\d[\/\-.][0-3]?\d[\/\-.]\d{2,4})\s+(.+?)\s+\$?\s*([\d,]+\.\d{2})\s*$/;
+  for(const l of lines){
+    if(/subtotal|sales tax|\btax\b|\btotal\b|amount due|payments|ways to pay|qty\s+rate|bill to|remit to|customer number|^invoice\b/i.test(l)) continue;
+    let m=l.match(twoAmt);
+    if(m){ const name=m[1].replace(/^\d+[.)]?\s*/,"").trim(); items.push({name,unit:"",quantity:Number(m[2]),unitPrice:Number(m[3].replace(/,/g,"")),total:Number(m[4].replace(/,/g,""))}); continue; }
+    m=l.match(dateLed);
+    if(m){
+      let name=m[2].replace(/\bfor\s+[0-1]?\d[\/\-.][0-3]?\d[\/\-.]\d{2,4}\s+to\s+[0-1]?\d[\/\-.][0-3]?\d[\/\-.]\d{2,4}\b/i,"").replace(/\b[A-Z]{1,4}\d{3,}\b/,"").replace(/\s+/g," ").trim();
+      const amt=Number(m[3].replace(/,/g,""));
+      if(name) items.push({name,unit:"",quantity:1,unitPrice:amt,total:amt});
+    }
+  }
+  if(!items.length){
+    const sm=joined.match(/subtotal[:\s]*\$?\s*([\d,]+\.\d{2})/i);
+    const tm=joined.match(/total[:\s]*\$?\s*([\d,]+\.\d{2})/i);
+    const amt=sm?Number(sm[1].replace(/,/g,"")):(tm?Number(tm[1].replace(/,/g,"")):null);
+    items.push({name:"",unit:"",quantity:1,unitPrice:amt,total:amt});
+  }
+  return [{vendor,invoiceDate,source:"pdf",lineItems:items}];
+}
+function getKey(){ return localStorage.getItem("ledger_anthropic_key")||""; }
+function fileToB64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]); r.onerror=()=>rej(new Error("Couldn't read that file.")); r.readAsDataURL(file); }); }
+async function claudeParsePdf(file){
+  const key=getKey();
+  const pdf=await fileToB64(file);
+  const schema='{"vendor":"string","invoiceDate":"YYYY-MM-DD or best guess","lineItems":[{"name":"string","unit":"string or empty","quantity":number_or_null,"unitPrice":number_or_null,"total":number_or_null}]}';
+  let res;
+  try{
+    res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+      headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:ANTHROPIC_MODEL,max_tokens:4096,
+        system:"You extract structured data from supplier invoices. Respond with ONLY valid JSON matching the requested schema. No markdown, no code fences, no commentary. Use null for unknown numbers and strip currency symbols.",
+        messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:pdf}},{type:"text",text:"Extract the vendor, invoice date, and every line item from this invoice. Return JSON exactly in this shape: "+schema}]}]})});
+  }catch(e){ throw new Error("Couldn't reach the model. Check your key and connection."); }
+  if(!res.ok){ throw new Error("The model rejected the request \u2014 your key may be invalid or out of credit."); }
+  const data=await res.json();
+  const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").replace(/```json|```/g,"").trim();
+  let parsed; try{ parsed=JSON.parse(text); }catch{ throw new Error("Couldn't read line items from that PDF."); }
+  const items=(parsed.lineItems||[]).map(li=>({name:String(li.name||"").trim(),unit:li.unit||"",quantity:li.quantity??null,unitPrice:li.unitPrice??null,total:li.total??null})).filter(li=>li.name);
+  return [{vendor:parsed.vendor||"Unspecified vendor",invoiceDate:parsed.invoiceDate||new Date().toISOString().slice(0,10),source:"pdf",fileName:file.name,lineItems:items.length?items:[{name:"",unit:"",quantity:1,unitPrice:null,total:null}]}];
+}
+async function parsePdf(file){
+  let lines=[];
+  try{ lines=await pdfToLines(file); }catch(e){ lines=[]; }
+  const readable = lines.join("").replace(/\s/g,"").length >= 12;
+  if(readable){
+    const local=parseInvoiceText(lines);
+    const usable = local[0] && local[0].lineItems.some(li=>li.name && unitPriceOf(li)!=null);
+    if(usable) return local;
+    if(getKey()) return claudeParsePdf(file);   // messy/odd layout the rules can't structure
+    return local;                                // no key: open it in review so you can fix/fill by hand
+  }
+  if(getKey()) return claudeParsePdf(file);
+  throw new Error("This PDF has no readable text (it looks scanned). Add an API key in Settings to read it with AI, or type it in / import a CSV.");
+}
+
+/* ---------- data layer ---------- */
+async function fetchLocations(){ const {data,error}=await sb.from("locations").select("id, name").order("name"); if(error)throw error; return data||[]; }
+async function addLocationDb(name){ const {data,error}=await sb.from("locations").insert({name}).select("id, name").single(); if(error)throw error; return data; }
+async function deleteLocationDb(id){ const {error}=await sb.from("locations").delete().eq("id",id); if(error)throw error; }
+async function fetchInvoices(){
+  const {data,error}=await sb.from("invoices")
+    .select("id, vendor, invoice_date, location_id, location:locations(name), line_items(name, unit, quantity, unit_price, total)")
+    .order("invoice_date",{ascending:true});
+  if(error)throw error;
+  return (data||[]).map(inv=>({ id:inv.id, vendor:inv.vendor, invoiceDate:inv.invoice_date, locationId:inv.location_id, locationName:inv.location?inv.location.name:null,
+    lineItems:(inv.line_items||[]).map(l=>({name:l.name,unit:l.unit,quantity:l.quantity,unitPrice:l.unit_price,total:l.total})) }));
+}
+async function addInvoice(inv){
+  const {data:row,error}=await sb.from("invoices").insert({ vendor:inv.vendor||"Unspecified vendor", invoice_date:inv.invoiceDate||null, source:inv.source||null, file_name:inv.fileName||null, location_id:inv.locationId||null }).select("id").single();
+  if(error)throw error;
+  const rows=(inv.lineItems||[]).filter(l=>l.name&&unitPriceOf(l)!=null).map(l=>({
+    invoice_id:row.id, name:l.name, norm_name:norm(l.name), unit:l.unit||null,
+    quantity:l.quantity===""?null:l.quantity, unit_price:l.unitPrice===""?null:l.unitPrice, total:l.total===""?null:l.total }));
+  if(rows.length){ const {error:e2}=await sb.from("line_items").insert(rows); if(e2)throw e2; }
+}
+async function deleteInvoice(id){ const {error}=await sb.from("invoices").delete().eq("id",id); if(error)throw error; }
+async function updateInvoice(id,inv){
+  const {error}=await sb.from("invoices").update({ vendor:inv.vendor||"Unspecified vendor", invoice_date:inv.invoiceDate||null, location_id:inv.locationId||null }).eq("id",id);
+  if(error)throw error;
+  const {error:ed}=await sb.from("line_items").delete().eq("invoice_id",id); if(ed)throw ed;
+  const rows=(inv.lineItems||[]).filter(l=>l.name&&unitPriceOf(l)!=null).map(l=>({invoice_id:id,name:l.name,norm_name:norm(l.name),unit:l.unit||null,quantity:l.quantity===""?null:l.quantity,unit_price:l.unitPrice===""?null:l.unitPrice,total:l.total===""?null:l.total}));
+  if(rows.length){ const {error:e2}=await sb.from("line_items").insert(rows); if(e2)throw e2; }
+}
+
+/* ---------- UI bits ---------- */
+function sparkline(points,w,h){
+  w=w||96; h=h||30;
+  if(!points||points.length<2) return '<svg width="'+w+'" height="'+h+'"><line x1="4" y1="'+(h-6)+'" x2="'+(w-4)+'" y2="'+(h-6)+'" stroke="var(--line-strong)" stroke-width="2" stroke-dasharray="2 3"/></svg>';
+  const vals=points.map(p=>p.unitPrice), min=Math.min(...vals), max=Math.max(...vals), span=(max-min)||1, pad=4;
+  const step=(w-pad*2)/(points.length-1);
+  const y=v=>pad+(h-pad*2)*(1-(v-min)/span);
+  const d=points.map((p,i)=>(pad+i*step)+","+y(p.unitPrice)).join(" ");
+  const rising=vals[vals.length-1]>=vals[0], col=rising?"var(--up)":"var(--down)";
+  const lx=pad+(points.length-1)*step;
+  return '<svg width="'+w+'" height="'+h+'"><polyline points="'+d+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="'+lx+'" cy="'+y(vals[vals.length-1])+'" r="2.6" fill="'+col+'"/></svg>';
+}
+function delta(v,big){
+  if(v==null) return '<span class="pill flat">new</span>';
+  const cls=v>0.05?"up":v<-0.05?"down":"flat";
+  const arrow=v>0.05?"\u2191":v<-0.05?"\u2193":"\u2192";
+  const st=big?'style="font-size:14px;padding:5px 11px"':"";
+  return '<span class="pill '+cls+'" '+st+'>'+arrow+' <span class="num">'+fmtPct(v)+'</span></span>';
+}
+function lineChart(points){
+  const W=640,H=240,pl=54,pr=16,pt=12,pb=28;
+  const vals=points.map(p=>p.unitPrice), min=Math.min(...vals), max=Math.max(...vals);
+  const lo=Math.max(0,min*0.95), hi=max*1.05, span=(hi-lo)||1;
+  const iw=W-pl-pr, ih=H-pt-pb;
+  const x=i=>pl+(points.length===1?iw/2:iw*i/(points.length-1));
+  const y=v=>pt+ih*(1-(v-lo)/span);
+  const dline=points.map((p,i)=>x(i)+","+y(p.unitPrice)).join(" ");
+  let grid="", dots="", xlabels="";
+  for(let g=0;g<=3;g++){ const v=lo+span*g/3, yy=y(v); grid+='<line x1="'+pl+'" y1="'+yy+'" x2="'+(W-pr)+'" y2="'+yy+'" stroke="var(--line)" stroke-width="1"/><text x="'+(pl-8)+'" y="'+(yy+4)+'" text-anchor="end" font-size="11" fill="var(--muted)" font-family="ui-monospace,Menlo,monospace">$'+v.toFixed(2)+'</text>'; }
+  points.forEach((p,i)=>{ dots+='<circle cx="'+x(i)+'" cy="'+y(p.unitPrice)+'" r="3" fill="var(--brand)"/>'; const lab=p.label||monthLabel(p.date); if(points.length<=8||i%Math.ceil(points.length/6)===0){ xlabels+='<text x="'+x(i)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" fill="var(--muted)">'+esc(lab)+'</text>'; } });
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block">'+grid+'<polyline points="'+dline+'" fill="none" stroke="var(--brand)" stroke-width="2.4" stroke-linejoin="round"/>'+dots+xlabels+'</svg>';
+}
+
+/* ---------- state ---------- */
+const state = {
+  session:undefined, invoices:[], locations:[], scope:"all",
+  view:"tracker", selected:null, loading:false, sort:"change", vendor:"all",
+  gran:"month", from:"", to:"",
+  stage:"idle", draft:null, queue:[], uploadError:"", hot:false, autoSave:false, importProgress:null, importResults:null, editId:null,
+  email:"", password:"", authMode:"signin", sent:false, authBusy:false, authError:"",
+};
+function set(p){ Object.assign(state,p); render(); }
+state.autoSave = localStorage.getItem("ledger_autosave")==="1";
+function scopedInvoices(){
+  if(state.scope==="all") return state.invoices;
+  if(state.scope==="unassigned") return state.invoices.filter(i=>!i.locationId);
+  return state.invoices.filter(i=>i.locationId===state.scope);
+}
+function scopeName(){
+  if(state.scope==="all") return "All locations";
+  if(state.scope==="unassigned") return "Unassigned";
+  const l=state.locations.find(l=>l.id===state.scope); return l?l.name:"Location";
+}
+function defaultLoc(){ return (state.scope!=="all"&&state.scope!=="unassigned")?state.scope:""; }
+function vendorList(){ const set=new Set(); for(const i of scopedInvoices()) if(i.vendor) set.add(i.vendor); return [...set].sort((a,b)=>a.localeCompare(b)); }
+function filteredInvoices(){ const inv=scopedInvoices(); return state.vendor==="all"?inv:inv.filter(i=>i.vendor===state.vendor); }
+
+/* ---------- views ---------- */
+function viewTrackerList(items){
+  if(!items.length) return '<div class="card empty"><div class="ic">\u25B3</div><div style="font-weight:650;color:var(--ink);font-size:16px">No prices tracked yet</div><p style="max-width:380px;margin:8px auto 18px">Upload an invoice as CSV or PDF. Each line item gets tracked over time so you can see what\u2019s creeping up.</p><button class="btn primary" data-go="upload">Upload an invoice</button></div>';
+  const sorted=[...items];
+  if(state.sort==="name") sorted.sort((a,b)=>a.name.localeCompare(b.name));
+  else if(state.sort==="price") sorted.sort((a,b)=>b.latest-a.latest);
+  else sorted.sort((a,b)=>(b.lastChange==null?-Infinity:b.lastChange)-(a.lastChange==null?-Infinity:a.lastChange));
+  const sortbtn=(k,l)=>'<button class="btn ghost '+(state.sort===k?"primary":"")+'" data-sort="'+k+'" '+(state.sort===k?"":'style="font-size:12px"')+'>'+l+'</button>';
+  return '<div style="display:flex;gap:6px;margin-bottom:14px">'+sortbtn("change","Biggest movers")+sortbtn("name","A\u2013Z")+sortbtn("price","Highest price")+'</div>'+
+    '<div class="card"><div class="row head"><div>Line item</div><div class="price">Latest unit price</div><div class="right">vs prior</div><div class="flex-end spark">Trend</div></div>'+
+    sorted.map(it=>'<div class="row" data-open="'+esc(it.key)+'"><div><div class="iname">'+esc(it.name)+'</div><div class="imeta">'+it.count+' invoice'+(it.count>1?"s":"")+' \u00b7 since '+esc(monthLabel(it.points[0].date))+'</div></div><div class="price num">'+money(it.latest)+'</div><div class="flex-end">'+delta(it.lastChange)+'</div><div class="flex-end spark">'+sparkline(it.points)+'</div></div>').join("")+'</div>';
+}
+function viewDetail(item){
+  const f=state.from?new Date(state.from):null, t=state.to?new Date(state.to):null;
+  const pts=item.points.filter(p=>{ const d=new Date(p.date); if(f&&d<f)return false; if(t&&d>t)return false; return true; });
+  const series=aggregatePoints(pts,state.gran);
+  const word=state.gran==="year"?"year":"month";
+  const granbtn=(k,l)=>'<button class="btn ghost '+(state.gran===k?"primary":"")+'" data-gran="'+k+'" '+(state.gran===k?"":'style="font-size:12px"')+'>'+l+'</button>';
+  const preset=(k,l)=>'<button class="btn ghost" data-preset="'+k+'" style="font-size:12px">'+l+'</button>';
+  const ctrls='<div class="ctrls"><div style="display:flex;gap:6px">'+granbtn("month","Monthly")+granbtn("year","Yearly")+'</div><div class="vline"></div>'+
+    preset("all","All")+preset("12m","12m")+preset("24m","24m")+preset("ytd","YTD")+
+    '<div style="display:flex;gap:6px;align-items:center;margin-left:auto"><span class="flabel" style="margin:0">From</span><input class="in num" id="d-from" type="date" value="'+esc(state.from)+'" style="width:150px"><span class="flabel" style="margin:0">To</span><input class="in num" id="d-to" type="date" value="'+esc(state.to)+'" style="width:150px"></div></div>';
+  const head='<button class="btn ghost" data-back="1" style="margin-bottom:14px;padding-left:6px">\u2190 All items</button><h1 class="h1" style="margin-top:0">'+esc(item.name)+'</h1><p class="sub">'+item.count+' invoices \u00b7 '+esc(monthLabel(item.points[0].date))+' \u2013 '+esc(monthLabel(item.latestDate))+'</p>'+ctrls;
+  if(!series.length) return head+'<div class="card empty"><p>No invoices for this item in that date range. Widen the range or reset it.</p></div>';
+  const last=series[series.length-1], prev=series.length>=2?series[series.length-2]:null, first=series[0];
+  const lastChange=prev?pct(last.unitPrice,prev.unitPrice):null;
+  const rangeChange=series.length>=2?pct(last.unitPrice,first.unitPrice):null;
+  const rows=series.map((s,i)=>({...s,change:i>0?pct(s.unitPrice,series[i-1].unitPrice):null})).reverse();
+  const priceHdr=state.gran==="year"?"Avg unit price":"Unit price";
+  const stats='<div class="stat-grid"><div class="stat"><div class="k">Latest unit price</div><div class="v num">'+money(last.unitPrice)+'</div></div><div class="stat"><div class="k">Change vs prior '+word+'</div><div class="v">'+delta(lastChange,true)+'</div></div><div class="stat"><div class="k">Change across range</div><div class="v">'+delta(rangeChange,true)+'</div></div></div>';
+  const chart=series.length>=2?'<div class="card" style="padding:18px 14px 8px;margin-bottom:18px">'+lineChart(series)+'</div>':"";
+  const table='<div class="card"><table class="led"><thead><tr><th>'+(state.gran==="year"?"Year":"Month")+'</th><th class="r">'+priceHdr+'</th><th class="r">Change</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr><td>'+esc(r.label)+(r.count>1?' <span style="color:var(--faint);font-size:12px">\u00b7 '+r.count+' invoices</span>':"")+'</td><td class="r num">'+money(r.unitPrice)+'</td><td class="r">'+delta(r.change)+'</td></tr>').join("")+'</tbody></table></div>';
+  return head+stats+chart+table;
+}
+function viewUpload(){
+  if(state.stage==="importing"){
+    const p=state.importProgress||{done:0,total:0};
+    return '<h1 class="h1">Importing\u2026</h1><p class="sub">Reading and saving your invoices. Keep this tab open.</p><div class="card" style="padding:28px;text-align:center"><div class="spin" style="margin:0 auto"></div><div style="margin-top:14px;font-weight:600" class="num">'+p.done+' / '+p.total+'</div><div style="color:var(--muted);font-size:13px;margin-top:4px">files processed</div></div>';
+  }
+  if(state.stage==="done"&&state.importResults){
+    const r=state.importResults;
+    const list=r.saved.length?('<div class="card" style="margin-bottom:14px"><table class="led"><thead><tr><th>Vendor</th><th>Date</th><th>Location</th><th class="r">Items</th></tr></thead><tbody>'+r.saved.map(s=>'<tr><td>'+esc(s.vendor)+'</td><td>'+esc(monthLabel(s.date))+'</td><td style="color:'+(s.location?"var(--ink)":"var(--faint)")+'">'+esc(s.location||"Unassigned")+'</td><td class="r num">'+s.items+'</td></tr>').join("")+'</tbody></table></div>'):"";
+    const errs=r.errors.length?('<div class="banner warn">'+r.errors.length+" file"+(r.errors.length>1?"s":"")+" couldn\u2019t be read: "+esc(r.errors.map(e=>e.name).join(", "))+'</div>'):"";
+    return '<h1 class="h1">Imported '+r.saved.length+' invoice'+(r.saved.length===1?"":"s")+'</h1><p class="sub">Auto-saved without review. Open the Invoices tab to edit any that need fixing.</p>'+errs+list+'<div style="display:flex;gap:10px"><button class="btn primary" data-go="invoices">Review in Invoices</button><button class="btn ghost" id="import-more">Import more</button></div>';
+  }
+  if(state.stage==="review"&&state.draft){
+    const d=state.draft; const editing=!!state.editId;
+    const opts='<option value="">Unassigned</option>'+state.locations.map(l=>'<option value="'+esc(l.id)+'" '+(d.locationId===l.id?"selected":"")+'>'+esc(l.name)+'</option>').join("");
+    return '<h1 class="h1">'+(editing?"Edit invoice":"Review before saving")+'</h1><p class="sub">'+(editing?"Update the fields and save your changes.":"Check the location, vendor, date, and prices. Fix anything that looks off, then save.")+(!editing&&state.queue.length?' '+state.queue.length+' more after this.':"")+'</p>'+
+      (state.uploadError?'<div class="banner warn">'+esc(state.uploadError)+'</div>':"")+
+      '<div class="card" style="padding:18px;margin-bottom:16px"><label style="display:block;margin-bottom:14px"><div class="flabel">Location / project</div><select class="in" id="f-location">'+opts+'</select></label>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><label><div class="flabel">Vendor</div><input class="in" id="f-vendor" value="'+esc(d.vendor)+'"></label><label><div class="flabel">Invoice date</div><input class="in num" id="f-date" value="'+esc(d.invoiceDate||"")+'" placeholder="YYYY-MM-DD"></label></div></div>'+
+      '<div class="card" style="overflow:hidden"><table class="led"><thead><tr><th>Item</th><th>Unit</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Total</th><th></th></tr></thead><tbody>'+
+      d.lineItems.map((l,i)=>'<tr><td><input class="in" data-i="'+i+'" data-f="name" value="'+esc(l.name)+'"></td><td style="width:90px"><input class="in" data-i="'+i+'" data-f="unit" value="'+esc(l.unit||"")+'"></td><td class="r" style="width:80px"><input class="in num r" data-i="'+i+'" data-f="quantity" value="'+(l.quantity==null?"":l.quantity)+'"></td><td class="r" style="width:110px"><input class="in num r" data-i="'+i+'" data-f="unitPrice" value="'+(l.unitPrice==null?"":l.unitPrice)+'"></td><td class="r" style="width:110px"><input class="in num r" data-i="'+i+'" data-f="total" value="'+(l.total==null?"":l.total)+'"></td><td style="width:40px"><button class="btn danger" style="padding:6px" data-rm="'+i+'">\u2715</button></td></tr>').join("")+
+      '</tbody></table></div><div style="margin-top:12px"><button class="btn ghost" id="add-line" style="font-size:13px">+ Add line item</button></div><div style="display:flex;gap:10px;margin-top:16px"><button class="btn primary" id="save-draft" '+(state.stage==="saving"?"disabled":"")+'>'+(state.stage==="saving"?"Saving\u2026":(editing?"Save changes":"Save invoice"))+'</button><button class="btn ghost" id="cancel-draft">Cancel</button></div>';
+  }
+  const target=defaultLoc()? (state.locations.find(l=>l.id===defaultLoc())||{}).name : "Unassigned";
+  const autoNote=state.autoSave?'<div style="color:var(--muted);font-size:13px;margin-top:8px">Auto-save is on \u2014 invoices save straight into <b>'+esc(target||"Unassigned")+'</b> (set by the location picker up top) with no review. Fix any later from the Invoices tab.</div>':'';
+  return '<h1 class="h1">Upload invoices</h1><p class="sub">Drop one or many files. Read free in your browser; scanned/image PDFs need an API key (Settings).</p>'+
+    (state.uploadError?'<div class="banner warn">'+esc(state.uploadError)+'</div>':"")+
+    '<label style="display:flex;align-items:center;gap:9px;margin-bottom:14px;cursor:pointer;font-weight:550"><input type="checkbox" id="autosave-toggle" '+(state.autoSave?"checked":"")+' style="width:16px;height:16px;accent-color:var(--brand)"> Auto-save without reviewing (for bulk dumps)</label>'+
+    '<div class="drop '+(state.hot?"hot":"")+'" id="drop">'+
+    (state.stage==="parsing"?'<div class="spin" style="margin:0 auto"></div><div style="margin-top:12px;font-weight:600">Reading invoices\u2026</div>':'<div style="font-size:26px">\u2B06</div><div style="margin-top:8px;font-weight:600">Drop CSVs or PDFs, or click to browse</div><div style="color:var(--muted);font-size:13px;margin-top:4px">Select multiple files to dump them in at once.</div>')+
+    autoNote+
+    '<input type="file" id="file" accept=".csv,.pdf,text/csv,application/pdf" multiple style="display:none"></div>'+
+    '<div class="card" style="margin-top:18px;padding:18px"><div style="font-weight:600;margin-bottom:8px">CSV columns it understands</div><p style="color:var(--muted);margin:0;font-size:13px">Header names are matched loosely. Include at least an <b>item</b> (or description) column and a <b>unit price</b> (or amount) column. Optional: <b>vendor</b>, <b>date</b>, <b>unit</b>, <b>quantity</b>, <b>total</b>. Rows sharing a vendor and month are grouped into one invoice.</p></div>';
+}
+function viewInvoices(){
+  const inv=filteredInvoices();
+  if(!inv.length) return '<div class="card empty"><div class="ic">\u25A1</div><div style="font-weight:650;color:var(--ink);font-size:16px">No invoices here</div><p>Saved invoices show up here.</p></div>';
+  const sorted=[...inv].sort((a,b)=>new Date(b.invoiceDate)-new Date(a.invoiceDate));
+  return '<div class="card"><table class="led"><thead><tr><th>Date</th><th>Vendor</th><th>Location</th><th class="r">Line items</th><th class="r">Invoice total</th><th></th></tr></thead><tbody>'+
+    sorted.map(iv=>{ const total=(iv.lineItems||[]).reduce((s,l)=>{const tt=l.total!=null?Number(l.total):Number(l.quantity)*unitPriceOf(l); return s+(isNaN(tt)?0:tt);},0);
+      return '<tr><td>'+esc(monthLabel(iv.invoiceDate))+'</td><td>'+esc(iv.vendor)+'</td><td style="color:'+(iv.locationName?"var(--ink)":"var(--faint)")+'">'+esc(iv.locationName||"Unassigned")+'</td><td class="r num">'+(iv.lineItems?iv.lineItems.length:0)+'</td><td class="r num">'+(total?money(total):"\u2014")+'</td><td class="r" style="white-space:nowrap"><button class="btn ghost" style="padding:6px" data-edit="'+esc(iv.id)+'" title="Edit">\u270E</button><button class="btn danger" style="padding:6px" data-del="'+esc(iv.id)+'" title="Delete">\u{1F5D1}</button></td></tr>';
+    }).join("")+'</tbody></table></div>';
+}
+function viewLocations(){
+  const counts={}; for(const i of state.invoices) if(i.locationId) counts[i.locationId]=(counts[i.locationId]||0)+1;
+  const add='<div class="card" style="padding:18px;margin-bottom:18px;max-width:520px"><div class="flabel">Add a location or project</div><div style="display:flex;gap:10px"><input class="in" id="loc-name" placeholder="e.g. TMH Spring MRI, North site, Project Atlas"><button class="btn primary" id="loc-add">Add</button></div></div>';
+  let body;
+  if(!state.locations.length) body='<div class="card empty"><div class="ic">\u25CE</div><div style="font-weight:650;color:var(--ink);font-size:16px">No locations yet</div><p>Add one above. Then file each invoice under a location and track prices separately.</p></div>';
+  else body='<div class="card"><table class="led"><thead><tr><th>Location</th><th class="r">Invoices</th><th></th></tr></thead><tbody>'+
+    state.locations.map(l=>'<tr><td style="font-weight:600">'+esc(l.name)+'</td><td class="r num">'+(counts[l.id]||0)+'</td><td class="r"><button class="btn danger" style="padding:6px" data-delloc="'+esc(l.id)+'">\u{1F5D1}</button></td></tr>').join("")+'</tbody></table></div>';
+  return add+body+'<p class="sub" style="margin-top:14px;font-size:13px">Deleting a location doesn\u2019t delete its invoices \u2014 they just become unassigned.</p>';
+}
+
+function viewSettings(){
+  const key=getKey();
+  return '<h1 class="h1">Settings</h1><p class="sub">Optional. Add an Anthropic API key only if you need to read scanned or image-based PDFs that the free in-browser reader can\u2019t. Text PDFs and CSVs never use it. Stored only in this browser.</p>'+
+    '<div class="card" style="padding:18px;max-width:520px"><div class="flabel">Anthropic API key</div><input class="in" id="anthropic-key" type="password" placeholder="sk-ant-\u2026" value="'+esc(key)+'" style="margin-bottom:10px"><div style="display:flex;gap:10px"><button class="btn primary" id="save-key">Save key</button>'+(key?'<button class="btn ghost" id="clear-key">Remove</button>':"")+'</div><p style="color:var(--muted);font-size:12px;margin:14px 0 0">Used only when a PDF can\u2019t be read locally; reading a scan costs a few cents via the API. Get a key at console.anthropic.com. Anyone with access to this browser can read this key \u2014 remove it on shared machines.</p></div>';
+}
+/* ---------- render ---------- */
+function render(){
+  if(!configured){ root.innerHTML='<div class="center"><div class="card" style="padding:28px;max-width:520px"><h1 class="h1" style="margin-top:0">Almost there</h1><p class="sub" style="margin-bottom:0">Fill in SUPABASE_URL and SUPABASE_ANON_KEY near the top of the script.</p></div></div>'; return; }
+  if(state.session===undefined){ root.innerHTML='<div class="center"><div class="spin"></div></div>'; return; }
+  if(!state.session){ renderLogin(); return; }
+  const items=buildItems(filteredInvoices());
+  const sel=items.find(i=>i.key===state.selected)||null;
+  const showScope=(state.view==="tracker"||state.view==="invoices");
+  const tab=(k,l)=>'<button class="tab '+(state.view===k?"on":"")+'" data-tab="'+k+'"><span>'+l+'</span></button>';
+  const scopeSel=showScope?'<select class="scope-select" id="scope-select"><option value="all" '+(state.scope==="all"?"selected":"")+'>All locations</option>'+state.locations.map(l=>'<option value="'+esc(l.id)+'" '+(state.scope===l.id?"selected":"")+'>'+esc(l.name)+'</option>').join("")+'<option value="unassigned" '+(state.scope==="unassigned"?"selected":"")+'>Unassigned</option></select>':"";
+  const vendors=showScope?vendorList():[];
+  const vendorSel=showScope?'<select class="scope-select" id="vendor-select"><option value="all" '+(state.vendor==="all"?"selected":"")+'>All companies</option>'+vendors.map(v=>'<option value="'+esc(v)+'" '+(state.vendor===v?"selected":"")+'>'+esc(v)+'</option>').join("")+'</select>':"";
+  let content="";
+  if(state.view==="tracker") content = sel?viewDetail(sel):('<h1 class="h1">Price tracker</h1><p class="sub">Line items in '+(state.scope==="all"?"every location":esc(scopeName()))+(state.vendor==="all"?"":(" from "+esc(state.vendor)))+', sorted by how much each moved since last time.</p>'+viewTrackerList(items));
+  else if(state.view==="upload") content=viewUpload();
+  else if(state.view==="invoices") content='<h1 class="h1">Invoices</h1><p class="sub">'+(state.scope==="all"?"Everything your team has uploaded.":("Invoices filed under "+esc(scopeName())+"."))+'</p>'+viewInvoices();
+  else if(state.view==="locations") content='<h1 class="h1">Locations &amp; projects</h1><p class="sub">Group invoices so you can track prices for each place or project on its own.</p>'+viewLocations();
+  else if(state.view==="settings") content=viewSettings();
+  root.innerHTML='<div class="top"><div class="top-in"><div class="brand"></div><div class="nav">'+scopeSel+vendorSel+tab("tracker","Tracker")+tab("upload","Upload")+tab("invoices","Invoices")+tab("locations","Locations")+tab("settings","Settings")+'<button class="tab" id="theme-toggle" title="Toggle theme">'+(theme==="dark"?"\u2600":"\u263E")+'</button><button class="tab" id="refresh" title="Refresh">\u21BB</button><button class="tab" id="signout">Log out</button></div></div></div><div class="wrap">'+content+'</div>';
+  wire();
+}
+function renderLogin(){
+  const signup=state.authMode==="signup";
+  root.innerHTML='<div class="center"><div class="card" style="padding:30px;width:380px;max-width:90vw"><h1 style="font-size:20px;font-weight:680;letter-spacing:-.02em;margin:0 0 4px">'+(signup?"Create account":"Sign in")+'</h1>'+
+    (state.sent?'<p style="color:var(--muted);margin-top:8px">Check <b>'+esc(state.email)+'</b> to confirm your account, then come back and sign in.</p>'
+      :'<p style="color:var(--muted);margin:0 0 18px">'+(signup?"Use your email and a password (6+ characters).":"Enter your email and password.")+'</p>'+
+        (state.authError?'<div class="banner warn">'+esc(state.authError)+'</div>':"")+
+        '<input class="in" id="login-email" type="email" placeholder="you@company.com" value="'+esc(state.email)+'" style="margin-bottom:10px"><input class="in" id="login-password" type="password" placeholder="Password" value="'+esc(state.password)+'" style="margin-bottom:12px"><button class="btn primary" id="login-btn" style="width:100%;justify-content:center" '+(state.authBusy?"disabled":"")+'>'+(state.authBusy?"\u2026":(signup?"Create account":"Sign in"))+'</button><p style="color:var(--muted);font-size:13px;text-align:center;margin:14px 0 0">'+(signup?"Already have an account?":"Need an account?")+' <a href="#" id="toggle-mode" style="color:var(--brand-ink);font-weight:600;text-decoration:none">'+(signup?"Sign in":"Create one")+'</a></p>')+
+    '</div></div>';
+  const email=document.getElementById("login-email"); if(email) email.oninput=e=>state.email=e.target.value;
+  const pw=document.getElementById("login-password"); if(pw){ pw.oninput=e=>state.password=e.target.value; pw.onkeydown=e=>{ if(e.key==="Enter") doAuth(); }; }
+  const btn=document.getElementById("login-btn"); if(btn) btn.onclick=doAuth;
+  const tg=document.getElementById("toggle-mode"); if(tg) tg.onclick=e=>{ e.preventDefault(); set({authMode:signup?"signin":"signup",authError:"",sent:false}); };
+}
+
+/* ---------- events ---------- */
+async function doAuth(){
+  if(!state.email||!state.password){ set({authError:"Enter an email and password."}); return; }
+  set({authBusy:true,authError:""});
+  try{
+    if(state.authMode==="signup"){
+      const {data,error}=await sb.auth.signUp({ email:state.email, password:state.password, options:{ emailRedirectTo: window.location.origin+window.location.pathname }});
+      if(error){ set({authBusy:false,authError:error.message}); return; }
+      if(data.session) set({authBusy:false,password:""});
+      else set({authBusy:false,sent:true});
+    } else {
+      const {error}=await sb.auth.signInWithPassword({ email:state.email, password:state.password });
+      if(error) set({authBusy:false,authError:error.message});
+      else set({authBusy:false,password:""});
+    }
+  }catch(e){ set({authBusy:false,authError:e.message||"Something went wrong."}); }
+}
+function editLine(i,f,val){ const v=(f==="name"||f==="unit")?val:(val===""?"":Number(val)); state.draft.lineItems[i][f]=v; }
+function detectInvoices(file){ const isPdf=file.type==="application/pdf"||/\.pdf$/i.test(file.name); return isPdf?parsePdf(file):file.text().then(parseCsv); }
+async function handleFiles(list){
+  const files=Array.from(list||[]); if(!files.length) return;
+  if(state.autoSave){
+    set({uploadError:"",stage:"importing",importProgress:{done:0,total:files.length},importResults:null});
+    const saved=[], errors=[]; const def=defaultLoc();
+    const locName=def?(state.locations.find(l=>l.id===def)||{}).name:"";
+    for(let i=0;i<files.length;i++){
+      try{
+        const invs=await detectInvoices(files[i]);
+        for(const inv of invs){ inv.locationId=inv.locationId||def||null; await addInvoice(inv); saved.push({vendor:inv.vendor,date:inv.invoiceDate,items:(inv.lineItems||[]).filter(l=>l.name&&unitPriceOf(l)!=null).length,location:locName}); }
+      }catch(e){ errors.push({name:files[i].name,error:e.message}); }
+      state.importProgress={done:i+1,total:files.length}; render();
+    }
+    await loadAll();
+    set({stage:"done",importResults:{saved,errors}});
+    return;
+  }
+  set({uploadError:"",stage:"parsing"});
+  let all=[]; const errors=[];
+  for(const f of files){ try{ all=all.concat(await detectInvoices(f)); }catch(e){ errors.push({name:f.name,error:e.message}); } }
+  if(!all.length){ set({uploadError:errors.length?(errors[0].error||"Nothing could be read."):"Nothing could be read from those files.",stage:"idle"}); return; }
+  const [first,...rest]=all; first.locationId=first.locationId||defaultLoc();
+  set({draft:first,queue:rest,editId:null,stage:"review",uploadError:errors.length?(errors.length+" file(s) couldn\u2019t be read and were skipped."):""});
+}
+function openEdit(id){
+  const iv=state.invoices.find(x=>x.id===id); if(!iv) return;
+  const draft={ vendor:iv.vendor, invoiceDate:iv.invoiceDate, locationId:iv.locationId||"", lineItems:(iv.lineItems||[]).map(l=>({name:l.name,unit:l.unit||"",quantity:l.quantity,unitPrice:l.unitPrice,total:l.total})) };
+  set({view:"upload",stage:"review",editId:id,draft,queue:[],uploadError:""});
+}
+async function saveDraft(){
+  set({stage:"saving"});
+  try{
+    const payload={...state.draft, locationId:state.draft.locationId||null, lineItems:state.draft.lineItems.filter(l=>l.name&&unitPriceOf(l)!=null)};
+    if(state.editId){ await updateInvoice(state.editId,payload); await loadAll(); set({draft:null,editId:null,stage:"idle",view:"invoices",selected:null}); return; }
+    await addInvoice(payload);
+    await loadAll();
+    if(state.queue.length){ const [n,...rest]=state.queue; n.locationId=n.locationId||defaultLoc(); set({draft:n,queue:rest,stage:"review"}); }
+    else set({draft:null,stage:"idle",view:"tracker",selected:null});
+  }catch(e){ set({uploadError:e.message||"Couldn't save.",stage:"review"}); }
+}
+async function addLocationHandler(){ const el=document.getElementById("loc-name"); const name=(el&&el.value||"").trim(); if(!name) return; const loc=await addLocationDb(name); await loadAll(); set({scope:loc.id}); }
+function wire(){
+  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>set({view:b.dataset.tab,selected:null,uploadError:""}));
+  document.querySelectorAll("[data-sort]").forEach(b=>b.onclick=()=>set({sort:b.dataset.sort}));
+  document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>set({selected:b.dataset.open,gran:"month",from:"",to:""}));
+  document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>set({view:b.dataset.go,stage:"idle",importResults:null}));
+  const back=document.querySelector("[data-back]"); if(back) back.onclick=()=>set({selected:null});
+  const refresh=document.getElementById("refresh"); if(refresh) refresh.onclick=loadAll;
+  const signout=document.getElementById("signout"); if(signout) signout.onclick=()=>sb.auth.signOut();
+  const tt=document.getElementById("theme-toggle"); if(tt) tt.onclick=()=>{ theme=(theme==="dark"?"light":"dark"); localStorage.setItem("ledger_theme",theme); applyTheme(); render(); };
+  const ss=document.getElementById("scope-select"); if(ss) ss.onchange=e=>set({scope:e.target.value,vendor:"all",selected:null});
+  const vs=document.getElementById("vendor-select"); if(vs) vs.onchange=e=>set({vendor:e.target.value,selected:null});
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ await deleteInvoice(b.dataset.del); await loadAll(); });
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
+  const moreBtn=document.getElementById("import-more"); if(moreBtn) moreBtn.onclick=()=>set({stage:"idle",importResults:null,uploadError:""});
+  const auto=document.getElementById("autosave-toggle"); if(auto) auto.onchange=e=>{ localStorage.setItem("ledger_autosave",e.target.checked?"1":"0"); set({autoSave:e.target.checked}); };
+  document.querySelectorAll("[data-gran]").forEach(b=>b.onclick=()=>set({gran:b.dataset.gran}));
+  document.querySelectorAll("[data-preset]").forEach(b=>b.onclick=()=>{ const p=b.dataset.preset; if(p==="all")set({from:"",to:""}); else if(p==="ytd")set({from:ytd(),to:""}); else set({from:monthsAgo(p==="12m"?12:24),to:""}); });
+  const df=document.getElementById("d-from"); if(df) df.onchange=e=>set({from:e.target.value});
+  const dt=document.getElementById("d-to"); if(dt) dt.onchange=e=>set({to:e.target.value});
+  const drop=document.getElementById("drop"), file=document.getElementById("file");
+  if(drop&&file){
+    drop.onclick=()=>file.click();
+    drop.ondragover=e=>{e.preventDefault(); if(!state.hot) set({hot:true});};
+    drop.ondragleave=()=>{ if(state.hot) set({hot:false}); };
+    drop.ondrop=e=>{ e.preventDefault(); state.hot=false; handleFiles(e.dataTransfer.files); };
+    file.onchange=e=>handleFiles(e.target.files);
+  }
+  document.querySelectorAll("[data-i]").forEach(inp=>inp.oninput=e=>editLine(Number(e.target.dataset.i),e.target.dataset.f,e.target.value));
+  const fl=document.getElementById("f-location"); if(fl) fl.onchange=e=>state.draft.locationId=e.target.value;
+  const fv=document.getElementById("f-vendor"); if(fv) fv.oninput=e=>state.draft.vendor=e.target.value;
+  const fd=document.getElementById("f-date"); if(fd) fd.oninput=e=>state.draft.invoiceDate=e.target.value;
+  document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ state.draft.lineItems.splice(Number(b.dataset.rm),1); render(); });
+  const sd=document.getElementById("save-draft"); if(sd) sd.onclick=saveDraft;
+  const al=document.getElementById("add-line"); if(al) al.onclick=()=>{ state.draft.lineItems.push({name:"",unit:"",quantity:null,unitPrice:null,total:null}); render(); };
+  const sk=document.getElementById("save-key"); if(sk) sk.onclick=()=>{ const v=document.getElementById("anthropic-key").value.trim(); if(v) localStorage.setItem("ledger_anthropic_key",v); set({}); };
+  const ck=document.getElementById("clear-key"); if(ck) ck.onclick=()=>{ localStorage.removeItem("ledger_anthropic_key"); set({}); };
+  const cd=document.getElementById("cancel-draft"); if(cd) cd.onclick=()=>set({draft:null,queue:[],stage:"idle",uploadError:"",view:state.editId?"invoices":"upload",editId:null});
+  const la=document.getElementById("loc-add"); if(la) la.onclick=addLocationHandler;
+  const ln=document.getElementById("loc-name"); if(ln) ln.onkeydown=e=>{ if(e.key==="Enter") addLocationHandler(); };
+  document.querySelectorAll("[data-delloc]").forEach(b=>b.onclick=async()=>{ await deleteLocationDb(b.dataset.delloc); if(state.scope===b.dataset.delloc) state.scope="all"; await loadAll(); });
+}
+
+/* ---------- boot ---------- */
+async function loadAll(){
+  set({loading:true});
+  try{ const [inv,locs]=await Promise.all([fetchInvoices(),fetchLocations()]); state.invoices=inv; state.locations=locs; }
+  catch(e){ console.error(e); }
+  set({loading:false});
+}
+function boot(){
+  if(!configured){ render(); return; }
+  sb.auth.getSession().then(({data})=>{ state.session=data.session; render(); if(data.session) loadAll(); });
+  sb.auth.onAuthStateChange((_e,s)=>{ const was=!!state.session; state.session=s; render(); if(s&&!was) loadAll(); });
+}
+boot();
+</script>
+</body>
+</html>
